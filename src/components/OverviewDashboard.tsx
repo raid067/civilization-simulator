@@ -293,6 +293,113 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         </div>
       </div>
 
+      {/* Multi-Generational Demographics & Civilization Epoch */}
+      {(() => {
+        const living = state.people.filter((p) => p.alive);
+        const children = living.filter((p) => p.age <= 15).length;
+        const primeAdults = living.filter((p) => p.age >= 16 && p.age <= 49).length;
+        const elders = living.filter((p) => p.age >= 50).length;
+        const total = Math.max(1, living.length);
+
+        const coupledPairs = Math.floor(
+          living.filter((p) => p.relationships.partnerId && living.some((m) => m.id === p.relationships.partnerId && m.alive)).length / 2
+        );
+
+        let settlementTier = 'Surviving Band Encampment';
+        if (living.length >= 300) settlementTier = 'Thriving Ancient Township';
+        else if (living.length >= 200) settlementTier = 'Permanent River Village';
+        else if (living.length >= 120) settlementTier = 'Settled Tribal Hamlet';
+        else if (living.length >= 60) settlementTier = 'River Terrace Clan Camp';
+
+        return (
+          <div className="bg-stone-900 border border-stone-800 rounded-xl p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-4 border-b border-stone-800 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-stone-100 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-purple-400" />
+                  Demographic Pyramid & Societal Epoch
+                </h3>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  Long-term population structure, generational replacement, and settlement evolutionary phase.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs px-2.5 py-1 rounded-full bg-purple-950/80 text-purple-300 border border-purple-800 font-medium">
+                  {settlementTier}
+                </span>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-stone-950 text-stone-400 border border-stone-800 font-mono">
+                  Solar Cycle: Year {state.year}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              {/* Age Pyramid Distribution */}
+              <div className="bg-stone-950 p-3.5 rounded-lg border border-stone-800 space-y-2">
+                <div className="font-semibold text-stone-300">Generational Age Structure</div>
+                <div className="space-y-1.5 font-mono text-[11px]">
+                  <div className="flex justify-between items-center text-cyan-300">
+                    <span>Children (0–15y):</span>
+                    <span>{children} ({Math.round((children / total) * 100)}%)</span>
+                  </div>
+                  <div className="flex justify-between items-center text-emerald-300">
+                    <span>Adults (16–49y):</span>
+                    <span>{primeAdults} ({Math.round((primeAdults / total) * 100)}%)</span>
+                  </div>
+                  <div className="flex justify-between items-center text-amber-300">
+                    <span>Elders (50+y):</span>
+                    <span>{elders} ({Math.round((elders / total) * 100)}%)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kinship Networks */}
+              <div className="bg-stone-950 p-3.5 rounded-lg border border-stone-800 space-y-2">
+                <div className="font-semibold text-stone-300">Kinship & Genetic Lineage</div>
+                <div className="space-y-1.5 font-mono text-[11px] text-stone-300">
+                  <div className="flex justify-between">
+                    <span className="text-stone-400">Coupled Pairs:</span>
+                    <span className="text-amber-200 font-bold">{coupledPairs} families</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-400">Total Historical Births:</span>
+                    <span className="text-purple-300 font-bold">{Math.max(0, state.people.length - 100)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-400">Oral Technologies:</span>
+                    <span className="text-emerald-300 font-bold">
+                      {state.technologies.filter((t) => t.discovered).length} / {state.technologies.length} known
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Environmental Carrying Capacity */}
+              <div className="bg-stone-950 p-3.5 rounded-lg border border-stone-800 space-y-2">
+                <div className="font-semibold text-stone-300">Carrying Capacity & Health</div>
+                <div className="space-y-1.5 font-mono text-[11px] text-stone-300">
+                  <div className="flex justify-between">
+                    <span className="text-stone-400">Current Cohort:</span>
+                    <span className="text-stone-100 font-bold">{living.length} agents</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-400">Habitat Capacity:</span>
+                    <span className="text-stone-300">{shelterCapacity} sheltered</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-400">Active Illness:</span>
+                    <span className={sickCount > 0 ? 'text-red-400' : 'text-emerald-400'}>
+                      {sickCount} cases
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Quick Clan Roster Peek */}
       <div className="bg-stone-900 border border-stone-800 rounded-xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-3">

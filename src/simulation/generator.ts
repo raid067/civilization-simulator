@@ -58,6 +58,7 @@ export function createInitialPeople(rng: SeededRandom): Person[] {
       const adultRoles: RoleType[] = [
         'hunter', 'hunter',
         'forager', 'forager', 'forager',
+        'fisherman', 'fisherman',
         'water_fetcher', 'water_fetcher',
         'lumberjack', 'lumberjack',
         'stonecutter',
@@ -76,18 +77,18 @@ export function createInitialPeople(rng: SeededRandom): Person[] {
       gender,
       alive: true,
       health: 88 + rng.integer(0, 9),
-      hunger: 10 + rng.integer(0, 14),
-      thirst: 10 + rng.integer(0, 14),
-      fatigue: 15 + rng.integer(0, 19),
+      hunger: 5 + rng.integer(0, 10),
+      thirst: 5 + rng.integer(0, 10),
+      fatigue: 10 + rng.integer(0, 15),
       temperature: 36.9 + (rng.next() * 0.4 - 0.2),
-      mentalState: 75 + rng.integer(0, 19),
-      injuries: rng.chance(0.12) ? ['Flint Scrape'] : [],
+      mentalState: 80 + rng.integer(0, 15),
+      injuries: rng.chance(0.08) ? ['Flint Scrape'] : [],
       diseases: [],
-      nutrition: 80,
-      shelterQuality: 35,
-      clothingQuality: 40,
-      warmth: 70,
-      safety: 75,
+      nutrition: 85,
+      shelterQuality: 45,
+      clothingQuality: 45,
+      warmth: 80,
+      safety: 80,
       role,
       skills: {
         hunting: role === 'hunter' ? 55 + rng.integer(0, 24) : 20 + rng.integer(0, 19),
@@ -97,6 +98,7 @@ export function createInitialPeople(rng: SeededRandom): Person[] {
         woodcraft: role === 'lumberjack' || role === 'builder' ? 50 + rng.integer(0, 24) : 15,
         healing: role === 'herbalist' ? 60 + rng.integer(0, 24) : 10,
         lore: role === 'elder_lorekeeper' ? 70 + rng.integer(0, 19) : 15,
+        fishing: role === 'fisherman' ? 60 + rng.integer(0, 24) : 20,
       },
       relationships: {
         parentIds: [],
@@ -105,16 +107,24 @@ export function createInitialPeople(rng: SeededRandom): Person[] {
     });
   }
 
-  // Generate some family ties
+  // Generate multi-generational family and marital ties
   for (let i = 0; i < 15; i++) {
     const child = people[i];
-    const mother = people[16 + (i % 20)];
-    const father = people[36 + (i % 20)];
+    const mother = people[16 + (i % 18)];
+    const father = people[36 + (i % 18)];
     child.relationships.parentIds = [mother.id, father.id];
     mother.relationships.childrenIds.push(child.id);
     father.relationships.childrenIds.push(child.id);
     mother.relationships.partnerId = father.id;
     father.relationships.partnerId = mother.id;
+  }
+
+  // Pair up additional prime adult partners
+  const adultFemales = people.filter(p => p.gender === 'female' && p.age >= 18 && p.age <= 44 && !p.relationships.partnerId);
+  const adultMales = people.filter(p => p.gender === 'male' && p.age >= 18 && p.age <= 48 && !p.relationships.partnerId);
+  for (let i = 0; i < Math.min(adultFemales.length, adultMales.length); i++) {
+    adultFemales[i].relationships.partnerId = adultMales[i].id;
+    adultMales[i].relationships.partnerId = adultFemales[i].id;
   }
 
   return people;
@@ -182,7 +192,7 @@ export function createInitialResources(): Record<string, ResourceState> {
       id: 'plants',
       name: 'Wild Herbs & Edibles',
       category: 'renewable',
-      quantity: 420,
+      quantity: 550,
       worldReserve: 8500,
       regenerationRatePerYear: 4200,
       quality: 85,
@@ -196,7 +206,7 @@ export function createInitialResources(): Record<string, ResourceState> {
       id: 'meat',
       name: 'Raw Game Meat',
       category: 'renewable',
-      quantity: 650,
+      quantity: 1200,
       worldReserve: 12500,
       regenerationRatePerYear: 3800,
       quality: 90,
@@ -210,7 +220,7 @@ export function createInitialResources(): Record<string, ResourceState> {
       id: 'fish',
       name: 'River Fish',
       category: 'renewable',
-      quantity: 320,
+      quantity: 850,
       worldReserve: 9000,
       regenerationRatePerYear: 4500,
       quality: 85,
@@ -224,7 +234,7 @@ export function createInitialResources(): Record<string, ResourceState> {
       id: 'fruit',
       name: 'Wild Berries & Fruits',
       category: 'renewable',
-      quantity: 540,
+      quantity: 800,
       worldReserve: 6000,
       regenerationRatePerYear: 5000,
       quality: 88,
@@ -238,7 +248,7 @@ export function createInitialResources(): Record<string, ResourceState> {
       id: 'grains',
       name: 'Wild Einkorn & Seeds',
       category: 'renewable',
-      quantity: 1100,
+      quantity: 2400,
       worldReserve: 14000,
       regenerationRatePerYear: 6000,
       quality: 80,

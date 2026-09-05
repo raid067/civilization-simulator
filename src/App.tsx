@@ -110,12 +110,17 @@ export default function App() {
       } else if (e.key === 'y' || e.key === 'Y') {
         e.preventDefault();
         handleStepYear();
+      } else if (e.key === 'd' || e.key === 'D') {
+        e.preventDefault();
+        handleStepDecade();
       } else if (e.key === '1') {
         setPlaySpeed(1);
       } else if (e.key === '2') {
         setPlaySpeed(2);
-      } else if (e.key === '3' || e.key === '5') {
+      } else if (e.key === '3') {
         setPlaySpeed(5);
+      } else if (e.key === '4') {
+        setPlaySpeed(10);
       } else if (e.key === 'Escape') {
         setInspectingPersonId(null);
         setShowExtinctionModal(false);
@@ -126,11 +131,11 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Simulation loop when Auto-Play is active
+  // Simulation loop when continuous mode is active
   useEffect(() => {
     if (!isPlaying) return;
 
-    const intervalMs = playSpeed === 5 ? 800 : playSpeed === 2 ? 1800 : 3500;
+    const intervalMs = playSpeed === 10 ? 300 : playSpeed === 5 ? 700 : playSpeed === 2 ? 1500 : 3000;
     const timer = setInterval(() => {
       setCivState((prev) => {
         const { state: nextState, reportGenerated } = simulateSeason(prev);
@@ -192,6 +197,36 @@ export default function App() {
       
       setAnnualNotification(`Solar cycle ${report.year} concluded with Environmental Threat Level: ${report.threatLevel}`);
       return nextState;
+    });
+  };
+
+  // Handler to advance 1 full decade (10 solar cycles / 40 seasons)
+  const handleStepDecade = () => {
+    setCivState((prev) => {
+      let currentState = prev;
+      let lastReport: any = null;
+      for (let y = 0; y < 10; y++) {
+        const { state: nextState, report } = simulateYear(currentState);
+        currentState = nextState;
+        lastReport = report;
+        if (currentState.policies?.autonomyEnabled !== false) {
+          try {
+            const context = createSimulationContext(
+              currentState,
+              parseInt(localStorage.getItem(SEED_KEY) || '12345', 10) + y,
+              DEFAULT_CONFIG
+            );
+            runAutonomySystem(context);
+          } catch (e) {
+            console.warn('Autonomy system error:', e);
+          }
+        }
+        if (currentState.people.filter((p) => p.alive).length === 0) break;
+      }
+      if (lastReport) {
+        setAnnualNotification(`Decade epoch concluded! Reached Solar Cycle Year ${lastReport.year} (Active Cohort: ${currentState.people.filter(p => p.alive).length}).`);
+      }
+      return currentState;
     });
   };
 
@@ -325,6 +360,7 @@ export default function App() {
         onChangeSpeed={setPlaySpeed}
         onStepSeason={handleStepSeason}
         onStepYear={handleStepYear}
+        onStepDecade={handleStepDecade}
         onReset={handleReset}
         onOpenLatestReport={() => setActiveTab('reports')}
       />
@@ -526,10 +562,12 @@ export default function App() {
         )}
       </main>
 
-      {/* Person Inspection Modal (Section 1: 13 Physical Needs) */}
+      {/* Person Inspection Modal (Section 1: 13 Physical Needs & Kinship) */}
       <PersonModal
         person={inspectedPerson}
+        allPeople={civState.people}
         onClose={() => setInspectingPersonId(null)}
+        onSelectPerson={(id) => setInspectingPersonId(id)}
       />
 
       {/* Extinction Postmortem Modal */}

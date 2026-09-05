@@ -29,7 +29,7 @@ export function runAutonomySystem(context: SimulationContext): void {
 }
 
 /**
- * Automatically adjust worker assignments according to life-support runways
+ * Automatically adjust worker assignments according to life-support runways, seasonal demands, and skill affinities
  */
 function manageTribalLabor(state: CivilizationState): void {
   const living = state.people.filter((p) => p.alive);
@@ -37,7 +37,8 @@ function manageTribalLabor(state: CivilizationState): void {
   if (livingCount === 0) return;
 
   const ableAdults = living.filter((p) => p.age >= 10 && p.health > 20);
-  if (ableAdults.length === 0) return;
+  const totalAble = ableAdults.length;
+  if (totalAble === 0) return;
 
   // Calculate current survival reserves
   const totalFoodKg =
@@ -47,78 +48,151 @@ function manageTribalLabor(state: CivilizationState): void {
     state.resources.grains.quantity +
     state.resources.plants.quantity;
 
-  const dailyFoodConsumption = livingCount * (state.policies.foodRationing === 'Frugal' ? 1.2 : 1.8);
+  const dailyFoodConsumption = livingCount * (state.policies.foodRationing === 'Frugal' ? 0.85 : 1.1);
   const foodRunwayDays = dailyFoodConsumption > 0 ? totalFoodKg / dailyFoodConsumption : 999;
 
-  const dailyWaterConsumption = livingCount * 2.5 * (state.policies.waterConservation ? 0.75 : 1.0);
+  const dailyWaterConsumption = livingCount * 2.0 * (state.policies.waterConservation ? 0.75 : 1.0);
   const waterRunwayDays = dailyWaterConsumption > 0 ? state.resources.fresh_water.quantity / dailyWaterConsumption : 999;
 
   const fuelReserve = state.resources.fuel.quantity;
   const isWinterApproaching = state.season === 'Autumn' || state.season === 'Winter';
-  const fuelShortage = isWinterApproaching && fuelReserve < livingCount * 25;
+  const fuelShortage = isWinterApproaching && fuelReserve < livingCount * 14;
 
   const sickCount = living.filter((p) => p.diseases.length > 0 || p.health < 40).length;
 
-  // 1. Ensure at least one Elder Lorekeeper to prevent total loss of oral knowledge
-  const currentKeepers = living.filter((p) => p.role === 'elder_lorekeeper');
-  if (currentKeepers.length === 0) {
-    const elderCandidate = ableAdults
-      .filter((p) => p.age >= 45)
-      .sort((a, b) => b.skills.lore - a.skills.lore)[0];
-    if (elderCandidate) {
-      elderCandidate.role = 'elder_lorekeeper';
+  // Unified Quota Planning Pass
+  const quotas: Record<RoleType, number> = {
+    elder_lorekeeper: 0,
+    herbalist: 0,
+    water_fetcher: 0,
+    lumberjack: 0,
+    forager: 0,
+    hunter: 0,
+    fisherman: 0,
+    farmer: 0,
+    builder: 0,
+    toolmaker: 0,
+    stonecutter: 0,
+    scout: 0,
+    idle_child: 0,
+    soldier: 0,
+    merchant: 0,
+    priest: 0,
+    scholar: 0,
+    craftsperson: 0,
+    miner: 0,
+    potter: 0,
+    weaver: 0,
+    sailor: 0,
+    administrator: 0,
+  };
+
+  let unassigned = totalAble;
+
+  // 1. Mandatory Oral Knowledge Keepers (2-3 elders)
+  quotas.elder_lorekeeper = Math.min(Math.min(3, Math.max(1, Math.floor(totalAble * 0.04))), unassigned);
+  unassigned -= quotas.elder_lorekeeper;
+
+  // 2. Medical Care for Outbreaks
+  if (sickCount >= 2 && unassigned > 0) {
+    quotas.herbalist = Math.min(Math.min(3, Math.ceil(sickCount * 0.35)), unassigned);
+    unassigned -= quotas.herbalist;
+  }
+
+  // 3. Proactive Water Fetchers (Vital continuous hydration)
+  if (unassigned > 0) {
+    const seasonalWaterDemandL = livingCount * (state.weather.currentTempC > 25 ? 240 : 180);
+    const fetcherCapacity = state.weather.isDrought ? 2400 : 4200;
+    const requiredFetchers = Math.ceil(seasonalWaterDemandL / fetcherCapacity);
+    const buffer = waterRunwayDays < 75 ? 2 : 0;
+    const targetWater = Math.min(Math.max(2, requiredFetchers + buffer), Math.ceil(totalAble * 0.25));
+    quotas.water_fetcher = Math.min(targetWater, unassigned);
+    unassigned -= quotas.water_fetcher;
+  }
+
+  // 4. Firewood & Warmth Buffer
+  if (unassigned > 0) {
+    let targetLumberjacks = 2;
+    if (state.season === 'Autumn' || fuelShortage) {
+      targetLumberjacks = Math.max(3, Math.ceil(totalAble * 0.16));
+    } else if (state.season === 'Winter') {
+      targetLumberjacks = Math.max(2, Math.ceil(totalAble * 0.12));
     }
+    quotas.lumberjack = Math.min(targetLumberjacks, unassigned);
+    unassigned -= quotas.lumberjack;
   }
 
-  // 2. Emergency Water Priority (Dehydration kills in days)
-  if (waterRunwayDays < 15) {
-    const targetWaterFetchers = Math.max(3, Math.ceil(ableAdults.length * 0.28));
-    rebalanceRole(ableAdults, 'water_fetcher', targetWaterFetchers);
+  // 5. Builders & Infrastructure maintenance
+  if (unassigned > 0) {
+    const targetBuilders = totalAble > 40 ? 2 : 1;
+    quotas.builder = Math.min(targetBuilders, unassigned);
+    unassigned -= quotas.builder;
   }
 
-  // 3. Emergency Food Priority (Famine prevention)
-  if (foodRunwayDays < 20) {
-    const targetFoodGatherers = Math.max(4, Math.ceil(ableAdults.length * 0.45));
-    // Split between foraging and hunting (and farming if Neolithic tech is unlocked)
+  // 6. Food Production Distribution (Remaining workforce)
+  if (unassigned > 0) {
     const hasAgri = state.technologies.some((t) => t.id === 'tech-agri' && t.discovered);
-    const foragerCount = hasAgri && state.season === 'Autumn' ? Math.floor(targetFoodGatherers * 0.4) : Math.floor(targetFoodGatherers * 0.65);
-    const hunterCount = targetFoodGatherers - foragerCount;
 
-    rebalanceRole(ableAdults, 'forager', foragerCount);
-    rebalanceRole(ableAdults, 'hunter', hunterCount);
-  }
-
-  // 4. Winter Fuel Buffer (Hypothermia prevention)
-  if (fuelShortage) {
-    const targetCutters = Math.max(2, Math.ceil(ableAdults.length * 0.20));
-    rebalanceRole(ableAdults, 'lumberjack', targetCutters);
-  }
-
-  // 5. Medical Care for Outbreaks
-  if (sickCount >= 3) {
-    const currentHealers = living.filter((p) => p.role === 'herbalist').length;
-    if (currentHealers === 0) {
-      const healerCandidate = ableAdults.find((p) => p.role !== 'elder_lorekeeper' && p.role !== 'water_fetcher');
-      if (healerCandidate) healerCandidate.role = 'herbalist';
+    if (state.season === 'Autumn') {
+      // Harvest push!
+      if (hasAgri) {
+        quotas.farmer = Math.floor(unassigned * 0.35);
+      }
+      quotas.hunter = Math.floor(unassigned * 0.30);
+      quotas.forager = Math.floor(unassigned * 0.20);
+      quotas.fisherman = unassigned - quotas.farmer - quotas.hunter - quotas.forager;
+    } else if (state.season === 'Winter') {
+      // Ice fishing, large game tracking, minimal snow foraging
+      quotas.hunter = Math.floor(unassigned * 0.45);
+      quotas.fisherman = Math.floor(unassigned * 0.40);
+      quotas.forager = unassigned - quotas.hunter - quotas.fisherman;
+    } else {
+      // Spring & Summer abundance: foraging berries/greens, river fishing runs, hunting
+      quotas.forager = Math.floor(unassigned * 0.40);
+      quotas.fisherman = Math.floor(unassigned * 0.32);
+      quotas.hunter = unassigned - quotas.forager - quotas.fisherman;
     }
   }
-}
 
-/**
- * Rebalances a role to have approximately targetCount adults
- */
-function rebalanceRole(adults: Person[], targetRole: RoleType, targetCount: number): void {
-  const currentInRole = adults.filter((p) => p.role === targetRole);
-  const diff = targetCount - currentInRole.length;
+  // Step 2: Assign workers to fulfill quotas based on age and skill affinity
+  const availableWorkers = [...ableAdults];
 
-  if (diff > 0) {
-    // Need more in this role; take from less critical roles (e.g. toolmaker, stonecutter, scout)
-    const candidates = adults.filter(
-      (p) => p.role !== targetRole && p.role !== 'elder_lorekeeper' && p.role !== 'water_fetcher'
-    );
-    for (let i = 0; i < Math.min(diff, candidates.length); i++) {
-      candidates[i].role = targetRole;
+  // Assign elder lorekeepers first (eldest candidates with highest lore)
+  if (quotas.elder_lorekeeper > 0) {
+    availableWorkers.sort((a, b) => {
+      if (a.age >= 45 && b.age < 45) return -1;
+      if (b.age >= 45 && a.age < 45) return 1;
+      return b.skills.lore - a.skills.lore;
+    });
+    for (let i = 0; i < quotas.elder_lorekeeper && availableWorkers.length > 0; i++) {
+      const w = availableWorkers.shift()!;
+      w.role = 'elder_lorekeeper';
     }
+  }
+
+  // Assign remaining roles
+  const rolesToAssign: RoleType[] = ['herbalist', 'water_fetcher', 'lumberjack', 'builder', 'farmer', 'fisherman', 'hunter', 'forager'];
+  for (const role of rolesToAssign) {
+    const count = quotas[role] || 0;
+    if (count <= 0 || availableWorkers.length === 0) continue;
+
+    // Sort available workers by skill for this role
+    availableWorkers.sort((a, b) => {
+      const skillA = (a.skills as any)[role] || 0;
+      const skillB = (b.skills as any)[role] || 0;
+      return skillB - skillA;
+    });
+
+    const assignCount = Math.min(count, availableWorkers.length);
+    for (let i = 0; i < assignCount; i++) {
+      const w = availableWorkers.shift()!;
+      w.role = role;
+    }
+  }
+
+  // Any leftover workers become foragers
+  for (const w of availableWorkers) {
+    w.role = 'forager';
   }
 }
 
@@ -139,22 +213,24 @@ function manageEmergencyPolicies(state: CivilizationState): void {
   const foodPerPerson = totalFoodKg / Math.max(1, livingCount);
 
   // If severe food shortage, enact Frugal rationing
-  if (foodPerPerson < 40 && state.policies.foodRationing !== 'Frugal') {
+  if (foodPerPerson < 35 && state.policies.foodRationing !== 'Frugal') {
     state.policies.foodRationing = 'Frugal';
-  } else if (foodPerPerson > 150 && state.policies.foodRationing === 'Frugal') {
+  } else if (foodPerPerson > 100 && state.policies.foodRationing === 'Frugal') {
     state.policies.foodRationing = 'Normal';
   }
 
   // If drought or water deficit, conserve water
-  if (state.weather.isDrought || state.resources.fresh_water.quantity < livingCount * 120) {
+  if (state.weather.isDrought || state.resources.fresh_water.quantity < livingCount * 90) {
     state.policies.waterConservation = true;
-  } else if (state.resources.fresh_water.quantity > livingCount * 400) {
+  } else if (state.resources.fresh_water.quantity > livingCount * 300) {
     state.policies.waterConservation = false;
   }
 
   // If winter blizzard, prioritize maximum warmth
   if (state.weather.isBlizzard || (state.season === 'Winter' && state.weather.currentTempC < -2)) {
     state.policies.firewoodPriority = 'Maximum Warmth';
+  } else if (state.season === 'Summer') {
+    state.policies.firewoodPriority = 'Balanced';
   }
 }
 

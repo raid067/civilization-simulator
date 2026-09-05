@@ -10,6 +10,7 @@ import {
   Compass,
   BookOpen,
   Apple,
+  Fish,
 } from 'lucide-react';
 import { CivilizationState, RoleType } from '../types';
 
@@ -43,6 +44,14 @@ const ROLE_DEFINITIONS: {
     icon: <Crosshair className="w-4 h-4 text-red-400" />,
     description: 'Track deer, boar, and upland game for dense animal protein, bone, and hides.',
     keyResource: 'Raw Meat & Bone',
+    requiresAdult: true,
+  },
+  {
+    id: 'fisherman',
+    label: 'River Fishermen',
+    icon: <Fish className="w-4 h-4 text-blue-400" />,
+    description: 'Catch river trout, salmon, and eels along the Red River basin; set fish weirs and ice traps.',
+    keyResource: 'River Fish & Protein',
     requiresAdult: true,
   },
   {

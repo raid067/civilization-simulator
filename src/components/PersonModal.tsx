@@ -14,16 +14,18 @@ import {
   Activity,
   AlertCircle,
   Award,
+  Users,
 } from 'lucide-react';
 import { Person } from '../types';
 
 interface PersonModalProps {
   person: Person | null;
+  allPeople?: Person[];
   onClose: () => void;
   onSelectPerson?: (id: string) => void;
 }
 
-export const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, onSelectPerson }) => {
+export const PersonModal: React.FC<PersonModalProps> = ({ person, allPeople = [], onClose, onSelectPerson }) => {
   if (!person) return null;
 
   const getNeedColor = (value: number, inverse = false) => {
@@ -268,21 +270,93 @@ export const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, onSel
 
         {/* Family & Social Relations */}
         <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-2">Clan & Lineage</h4>
-          <div className="bg-stone-950 p-3 rounded-lg border border-stone-800 text-xs text-stone-300 space-y-1">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3 flex items-center gap-1.5">
+            <Users className="w-4 h-4 text-amber-400" />
+            Kinship Lineage & Family Bonds
+          </h4>
+          <div className="bg-stone-950 p-3.5 rounded-lg border border-stone-800 text-xs text-stone-300 space-y-3">
+            {/* Parents */}
             <div>
-              Partner:{' '}
-              <span className="text-stone-200">
-                {person.relationships.partnerId ? person.relationships.partnerId : 'Unpaired'}
-              </span>
+              <span className="text-stone-400 block mb-1">Parents:</span>
+              {person.relationships.parentIds && person.relationships.parentIds.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {person.relationships.parentIds.map((pId) => {
+                    const parent = allPeople.find((p) => p.id === pId);
+                    return parent ? (
+                      <button
+                        key={pId}
+                        onClick={() => onSelectPerson && onSelectPerson(pId)}
+                        className="px-2 py-1 bg-stone-900 hover:bg-stone-800 border border-stone-700 rounded text-amber-200 transition-colors flex items-center gap-1.5"
+                      >
+                        <span>{parent.gender === 'female' ? '👩' : '👨'}</span>
+                        <span className="font-semibold">{parent.name}</span>
+                        <span className="text-stone-400 text-[10px]">
+                          ({parent.alive ? `${parent.age}y` : 'Deceased'})
+                        </span>
+                      </button>
+                    ) : (
+                      <span key={pId} className="text-stone-500 font-mono">{pId}</span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <span className="text-stone-500 italic">Original Cohort Founder (Ancestral Elder)</span>
+              )}
             </div>
+
+            {/* Partner */}
             <div>
-              Children:{' '}
-              <span className="text-stone-200">
-                {person.relationships.childrenIds.length > 0
-                  ? `${person.relationships.childrenIds.length} clan members`
-                  : 'None'}
-              </span>
+              <span className="text-stone-400 block mb-1">Partner / Spouse:</span>
+              {person.relationships.partnerId ? (
+                (() => {
+                  const partner = allPeople.find((p) => p.id === person.relationships.partnerId);
+                  return partner ? (
+                    <button
+                      onClick={() => onSelectPerson && onSelectPerson(partner.id)}
+                      className="px-2 py-1 bg-stone-900 hover:bg-stone-800 border border-stone-700 rounded text-amber-200 transition-colors flex items-center gap-1.5"
+                    >
+                      <span>{partner.gender === 'female' ? '👩' : '👨'}</span>
+                      <span className="font-semibold">{partner.name}</span>
+                      <span className="text-stone-400 text-[10px]">
+                        ({partner.alive ? `${partner.age}y` : 'Deceased'})
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="text-stone-500 font-mono">{person.relationships.partnerId}</span>
+                  );
+                })()
+              ) : (
+                <span className="text-stone-500 italic">Unpaired</span>
+              )}
+            </div>
+
+            {/* Children */}
+            <div>
+              <span className="text-stone-400 block mb-1">Offspring ({person.relationships.childrenIds.length}):</span>
+              {person.relationships.childrenIds.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                  {person.relationships.childrenIds.map((cId) => {
+                    const child = allPeople.find((p) => p.id === cId);
+                    return child ? (
+                      <button
+                        key={cId}
+                        onClick={() => onSelectPerson && onSelectPerson(cId)}
+                        className="px-2 py-0.5 bg-stone-900 hover:bg-stone-800 border border-stone-800 rounded text-stone-300 hover:text-amber-200 transition-colors flex items-center gap-1 text-[11px]"
+                      >
+                        <span>{child.gender === 'female' ? '👧' : '👦'}</span>
+                        <span>{child.name}</span>
+                        <span className="text-stone-500 text-[10px]">
+                          ({child.alive ? `${child.age}y` : '†'})
+                        </span>
+                      </button>
+                    ) : (
+                      <span key={cId} className="text-stone-500 text-[10px] font-mono">{cId}</span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <span className="text-stone-500 italic">No offspring recorded</span>
+              )}
             </div>
           </div>
         </div>

@@ -22,6 +22,7 @@ interface TimelineBarProps {
   onChangeSpeed: (speed: number) => void;
   onStepSeason: () => void;
   onStepYear: () => void;
+  onStepDecade?: () => void;
   onReset: () => void;
   onOpenLatestReport?: () => void;
 }
@@ -34,6 +35,7 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
   onChangeSpeed,
   onStepSeason,
   onStepYear,
+  onStepDecade,
   onReset,
   onOpenLatestReport,
 }) => {
@@ -162,6 +164,18 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
             Step Solar Cycle (+1y)
           </button>
 
+          {onStepDecade && (
+            <button
+              id="btn-step-decade"
+              onClick={onStepDecade}
+              disabled={isPlaying}
+              className="px-2.5 py-1 text-xs font-medium bg-purple-950/70 hover:bg-purple-900/90 active:bg-purple-950 text-purple-200 border border-purple-800/50 rounded transition-colors"
+              title="Step forward 1 full decade (10 years / 40 seasons) [Shortcut: D]"
+            >
+              Step Decade (+10y)
+            </button>
+          )}
+
           <button
             id="btn-toggle-play"
             onClick={onTogglePlay}
@@ -177,14 +191,14 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
 
           {isPlaying && (
             <div className="flex items-center gap-0.5 ml-1">
-              {[1, 2, 5].map((speed) => (
+              {[1, 2, 5, 10].map((speed) => (
                 <button
                   key={speed}
                   onClick={() => onChangeSpeed(speed)}
                   className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
                     playSpeed === speed ? 'bg-amber-600 text-white' : 'text-stone-400 hover:bg-stone-800'
                   }`}
-                  title={`Set simulation tick rate to ${speed}x [Shortcuts: 1, 2, 3]`}
+                  title={`Set simulation tick rate to ${speed}x [Shortcuts: 1, 2, 3, 4]`}
                 >
                   {speed}x
                 </button>

@@ -106,10 +106,31 @@ export function advanceSimulationSeason(prevState: CivilizationState): Civilizat
     state.annualBirths = 0;
     state.annualDeaths = 0;
 
-    // Age all living people by 1 year
+    // Age all living people by 1 year and graduate adolescents to productive workforce
     for (const person of state.people) {
       if (person.alive) {
         person.age += 1;
+
+        // Adolescent graduation: children reaching age 10 transition into active workforce
+        if (person.role === 'idle_child' && person.age >= 10) {
+          if (person.skills.hunting > 25) {
+            person.role = 'hunter';
+          } else if ((person.skills.fishing || 0) > 25) {
+            person.role = 'fisherman';
+          } else if (person.skills.woodcraft > 25) {
+            person.role = 'lumberjack';
+          } else {
+            person.role = 'forager';
+          }
+        }
+
+        // Elders reaching age 55+ with declining stamina transition to lorekeepers to safeguard oral knowledge
+        if (person.age >= 55 && person.role !== 'elder_lorekeeper' && person.skills.lore >= 30) {
+          const currentKeepers = state.people.filter((p) => p.alive && p.role === 'elder_lorekeeper').length;
+          if (currentKeepers < 4) {
+            person.role = 'elder_lorekeeper';
+          }
+        }
       }
     }
 
@@ -221,19 +242,34 @@ function simulateProduction(state: CivilizationState, rng: SeededRandom) {
   const carryEfficiency = hasBaskets ? 1.30 : 1.0;
 
   for (const person of livingPeople) {
-    if (person.age < 10) continue; // Young children cannot perform heavy labor
+    // Health and stamina efficiency factor
+    const efficiency = Math.max(0.2, (person.health / 100) * (1 - person.fatigue / 200));
 
-    // Health fatigue penalty
-    const efficiency = (person.health / 100) * (1 - person.fatigue / 200);
+    if (person.age < 10) {
+      if (person.age >= 6) {
+        // Older children assist with light camp chores: gathering dry kindling and wild berries
+        const kidFood = Math.round(35 * efficiency);
+        const kidFuel = Math.round(18 * efficiency);
+        state.resources.fruit.quantity += Math.round(kidFood * 0.6);
+        state.resources.plants.quantity += Math.round(kidFood * 0.4);
+        state.resources.fuel.quantity += kidFuel;
+        producedFoodKg += kidFood;
+        collectedFuel += kidFuel;
+        person.skills.foraging = Math.min(40, person.skills.foraging + 0.3);
+        person.skills.woodcraft = Math.min(40, person.skills.woodcraft + 0.3);
+      }
+      continue;
+    }
 
     switch (person.role) {
       case 'forager': {
         const seasonFactor = state.resources.fruit.seasonality[season];
-        const plantFactor = state.resources.plants.seasonality[season];
-        const droughtPen = weather.isDrought ? 0.5 : 1.0;
+        const droughtPen = weather.isDrought ? 0.65 : 1.0;
 
-        const foragedKg = Math.round((140 + person.skills.foraging * 1.8) * seasonFactor * droughtPen * carryEfficiency * efficiency);
-        const berryPart = Math.round(foragedKg * 0.5);
+        // Realistic wild gathering (berries, tubers, roots, nuts, wild greens): 220-380kg/season
+        const baseForaged = (220 + person.skills.foraging * 2.2) * seasonFactor * droughtPen * carryEfficiency * efficiency;
+        const foragedKg = Math.round(Math.max(45, baseForaged));
+        const berryPart = Math.round(foragedKg * 0.45);
         const rootPart = Math.round(foragedKg * 0.35);
         const plantPart = foragedKg - berryPart - rootPart;
 
@@ -247,13 +283,14 @@ function simulateProduction(state: CivilizationState, rng: SeededRandom) {
       }
       case 'hunter': {
         const gameReserve = state.resources.animals.worldReserve;
-        if (gameReserve > 50) {
+        if (gameReserve > 10) {
           const huntingSkill = person.skills.hunting;
-          const successChance = Math.min(0.85, (huntingSkill / 100) * 0.7 + (hasFlintKnapping ? 0.15 : 0.05));
-          const winterPenalty = season === 'Winter' ? 0.75 : 1.0;
+          const successChance = Math.min(0.85, 0.40 + (huntingSkill / 100) * 0.35 + (hasFlintKnapping ? 0.15 : 0.05));
+          const winterPenalty = season === 'Winter' ? 0.85 : 1.0;
 
           if (rng.chance(successChance * winterPenalty)) {
-            const meatKg = Math.round((90 + huntingSkill * 1.5) * toolEfficiency * efficiency);
+            // Large game bagged (deer, elk, wild boar): dense caloric protein, bones, hides
+            const meatKg = Math.round((160 + huntingSkill * 1.8) * toolEfficiency * efficiency);
             state.resources.meat.quantity += meatKg;
             state.resources.bone.quantity += Math.round(meatKg * 0.15);
             state.resources.fibers.quantity += Math.round(meatKg * 0.1);
@@ -261,47 +298,69 @@ function simulateProduction(state: CivilizationState, rng: SeededRandom) {
             state.resources.animals.quantity = state.resources.animals.worldReserve;
             producedFoodKg += meatKg;
           } else {
-            // Unsuccessful hunt, minor risk of animal counter-attack
-            if (rng.chance(0.08)) {
+            // Small game trapping (hares, waterfowl, small burrowers)
+            const smallMeatKg = Math.round((45 + huntingSkill * 0.6) * efficiency);
+            state.resources.meat.quantity += smallMeatKg;
+            producedFoodKg += smallMeatKg;
+
+            if (rng.chance(0.04)) {
               person.injuries.push('Boar Tusk Gash');
-              person.health = Math.max(10, person.health - 25);
+              person.health = Math.max(15, person.health - 20);
             }
           }
           person.skills.hunting = Math.min(100, person.skills.hunting + 0.5);
         }
         break;
       }
+      case 'fisherman': {
+        // River fishing along the Red River: vital continuous protein
+        const seasonFactor = state.resources.fish.seasonality[season];
+        const droughtPen = weather.isDrought ? 0.70 : 1.0;
+        const fishingSkill = person.skills.fishing || 25;
+        const fishKg = Math.round((180 + fishingSkill * 2.0) * seasonFactor * droughtPen * carryEfficiency * efficiency);
+        state.resources.fish.quantity += fishKg;
+        producedFoodKg += fishKg;
+        if (!person.skills.fishing) person.skills.fishing = 25;
+        person.skills.fishing = Math.min(100, person.skills.fishing + 0.6);
+        break;
+      }
       case 'farmer': {
         if (hasAgriculture) {
           let farmYield = 0;
           if (season === 'Autumn') {
-            const droughtPenalty = weather.isDrought ? 0.35 : 1.0;
-            farmYield = Math.round((280 + person.skills.farming * 3.0) * droughtPenalty * toolEfficiency * efficiency);
+            const droughtPenalty = weather.isDrought ? 0.45 : 1.0;
+            farmYield = Math.round((420 + person.skills.farming * 3.5) * droughtPenalty * toolEfficiency * efficiency);
             state.resources.grains.quantity += farmYield;
             producedFoodKg += farmYield;
           } else if (season === 'Spring') {
             // Planting season: consumes seeds from grains stockpile
-            state.resources.grains.quantity = Math.max(0, state.resources.grains.quantity - 25);
+            state.resources.grains.quantity = Math.max(0, state.resources.grains.quantity - 15);
+          } else {
+            // Summer weeding & early green harvest
+            const summerYield = Math.round((90 + person.skills.farming * 1.2) * efficiency);
+            state.resources.grains.quantity += summerYield;
+            producedFoodKg += summerYield;
           }
           person.skills.farming = Math.min(100, person.skills.farming + 0.8);
         } else {
-          // Primitive hoeing before agriculture yields meager wild tubers
-          const wildYield = Math.round(50 * efficiency);
+          // Primitive wild grain harvesting
+          const wildYield = Math.round((110 + person.skills.farming * 1.2) * efficiency);
           state.resources.grains.quantity += wildYield;
           producedFoodKg += wildYield;
+          person.skills.farming = Math.min(100, person.skills.farming + 0.3);
         }
         break;
       }
       case 'water_fetcher': {
-        const baseWater = (weather.isDrought ? 1400 : 2800) * carryEfficiency * efficiency;
+        const baseWater = (weather.isDrought ? 2400 : 4200) * carryEfficiency * efficiency;
         const fetched = Math.round(baseWater);
         state.resources.fresh_water.quantity += fetched;
         collectedWaterL += fetched;
         break;
       }
       case 'lumberjack': {
-        const cutWood = Math.round((120 + person.skills.woodcraft * 1.2) * toolEfficiency * efficiency);
-        const cutFuel = Math.round((80 + person.skills.woodcraft * 0.8) * efficiency);
+        const cutWood = Math.round((150 + person.skills.woodcraft * 1.4) * toolEfficiency * efficiency);
+        const cutFuel = Math.round((130 + person.skills.woodcraft * 1.2) * efficiency);
         state.resources.wood.quantity += cutWood;
         state.resources.fuel.quantity += cutFuel;
         state.resources.wood.worldReserve = Math.max(0, state.resources.wood.worldReserve - cutWood);
@@ -333,18 +392,18 @@ function simulateProduction(state: CivilizationState, rng: SeededRandom) {
           } else if (state.infrastructure.thatchedCabins < 10 && state.resources.timber.quantity >= 10) {
             state.resources.timber.quantity -= 10;
             state.infrastructure.thatchedCabins += 1;
-          } else if (state.infrastructure.granaryBins < 6) {
+          } else if (state.infrastructure.granaryBins < 8) {
             state.infrastructure.granaryBins += 1;
           } else if (state.infrastructure.waterCisterns < 8) {
             state.infrastructure.waterCisterns += 1;
-          } else if (state.infrastructure.smokingRacks < 4) {
+          } else if (state.infrastructure.smokingRacks < 6) {
             state.infrastructure.smokingRacks += 1;
           }
         }
         break;
       }
       case 'herbalist': {
-        const collectedPlants = Math.round(35 * efficiency);
+        const collectedPlants = Math.round((50 + person.skills.healing * 0.8) * efficiency);
         state.resources.plants.quantity += collectedPlants;
         person.skills.healing = Math.min(100, person.skills.healing + 0.6);
         break;
@@ -380,16 +439,6 @@ function simulateIndividualNeedsAndConsumption(state: CivilizationState, rng: Se
   const weather = state.weather;
   const rationing = state.policies.foodRationing;
 
-  // Daily food per person: Frugal = 1.2kg/day (108kg/season), Normal = 1.8kg/day (162kg/season), Generous = 2.4kg/day (216kg/season)
-  const targetFoodPerPerson = rationing === 'Frugal' ? 110 : rationing === 'Normal' ? 165 : 220;
-  // Daily water per person: ~2.5L/day = ~225L/season (more in hot summer heat)
-  const targetWaterPerPerson = (weather.currentTempC > 25 ? 280 : 225) * (state.policies.waterConservation ? 0.75 : 1.0);
-
-  // Firewood consumption per person per season: Winter 4x higher!
-  const baseFuelPerPerson = season === 'Winter' ? 35 : season === 'Autumn' ? 12 : season === 'Spring' ? 10 : 6;
-  const fuelMultiplier = state.policies.firewoodPriority === 'Maximum Warmth' ? 1.4 : state.policies.firewoodPriority === 'Minimum' ? 0.6 : 1.0;
-  const targetFuelPerPerson = Math.round(baseFuelPerPerson * fuelMultiplier);
-
   let totalConsumedFoodKg = 0;
   let totalConsumedWaterL = 0;
   let totalConsumedFuel = 0;
@@ -399,84 +448,109 @@ function simulateIndividualNeedsAndConsumption(state: CivilizationState, rng: Se
   const hasShelter = livingPeople.length <= shelterCapacity;
 
   for (const person of livingPeople) {
-    // 1. Food Consumption
+    // 1. Differentiated Caloric Food Need by Age & Rationing Policy
+    let baseFoodNeed = 100; // Adult baseline: ~1.11 kg/day
+    if (person.age <= 2) {
+      baseFoodNeed = 30; // Infant/toddler
+    } else if (person.age <= 9) {
+      baseFoodNeed = 55; // Growing child
+    } else if (person.age <= 15) {
+      baseFoodNeed = 85; // Adolescent
+    } else if (person.age >= 50) {
+      baseFoodNeed = 88; // Elder
+    }
+
+    const rationingMult = rationing === 'Frugal' ? 0.80 : rationing === 'Generous' ? 1.25 : 1.0;
+    const targetFood = Math.round(baseFoodNeed * rationingMult);
+
     let foodGiven = 0;
-    // Consume from food sources in order: Berries/Fruit -> Meat -> Fish -> Grains
+    // Consume from food sources in order: Berries/Fruit -> Meat -> Fish -> Grains -> Plants
     const foodSources: ResourceId[] = ['fruit', 'meat', 'fish', 'grains', 'plants'];
     for (const f of foodSources) {
-      if (foodGiven >= targetFoodPerPerson) break;
-      const needed = targetFoodPerPerson - foodGiven;
+      if (foodGiven >= targetFood) break;
+      const needed = targetFood - foodGiven;
       const take = Math.min(needed, state.resources[f].quantity);
       state.resources[f].quantity -= take;
       foodGiven += take;
     }
 
     totalConsumedFoodKg += foodGiven;
-    const foodDeficitRatio = foodGiven / targetFoodPerPerson;
+    const foodDeficitRatio = foodGiven / Math.max(1, targetFood);
 
     if (foodDeficitRatio < 0.5) {
-      // Starving!
-      person.hunger = Math.min(100, person.hunger + 35);
-      person.health = Math.max(0, person.health - 25);
-      person.mentalState = Math.max(0, person.mentalState - 30);
-      person.nutrition = Math.max(10, person.nutrition - 25);
-    } else if (foodDeficitRatio < 0.9) {
+      // Severe Starvation
+      person.hunger = Math.min(100, person.hunger + 30);
+      person.health = Math.max(0, person.health - 22);
+      person.mentalState = Math.max(0, person.mentalState - 25);
+      person.nutrition = Math.max(10, person.nutrition - 20);
+    } else if (foodDeficitRatio < 0.85) {
       // Malnourished
-      person.hunger = Math.min(100, person.hunger + 15);
-      person.health = Math.max(0, person.health - 8);
-      person.mentalState = Math.max(0, person.mentalState - 10);
+      person.hunger = Math.min(100, person.hunger + 12);
+      person.health = Math.max(0, person.health - 6);
+      person.mentalState = Math.max(0, person.mentalState - 8);
     } else {
-      // Well fed
-      person.hunger = Math.max(0, person.hunger - 25);
-      person.health = Math.min(100, person.health + 5);
-      person.mentalState = Math.min(100, person.mentalState + 5);
+      // Well nourished
+      person.hunger = Math.max(0, person.hunger - 20);
+      person.health = Math.min(100, person.health + 4);
+      person.mentalState = Math.min(100, person.mentalState + 4);
     }
 
     // 2. Water Consumption
+    let baseWaterNeed = person.age < 10 ? 120 : (weather.currentTempC > 25 ? 240 : 180);
+    if (state.policies.waterConservation) baseWaterNeed = Math.round(baseWaterNeed * 0.75);
+    const targetWater = baseWaterNeed;
+
     const waterAvailable = state.resources.fresh_water.quantity;
-    const waterGiven = Math.min(targetWaterPerPerson, waterAvailable);
+    const waterGiven = Math.min(targetWater, waterAvailable);
     state.resources.fresh_water.quantity -= waterGiven;
     totalConsumedWaterL += waterGiven;
 
-    const waterRatio = waterGiven / targetWaterPerPerson;
+    const waterRatio = waterGiven / Math.max(1, targetWater);
     if (waterRatio < 0.5) {
-      person.thirst = Math.min(100, person.thirst + 45);
-      person.health = Math.max(0, person.health - 35); // Dehydration kills rapidly
-      person.mentalState = Math.max(0, person.mentalState - 35);
-    } else if (waterRatio < 0.9) {
-      person.thirst = Math.min(100, person.thirst + 20);
-      person.health = Math.max(0, person.health - 12);
+      person.thirst = Math.min(100, person.thirst + 40);
+      person.health = Math.max(0, person.health - 30); // Acute dehydration
+      person.mentalState = Math.max(0, person.mentalState - 30);
+    } else if (waterRatio < 0.85) {
+      person.thirst = Math.min(100, person.thirst + 15);
+      person.health = Math.max(0, person.health - 8);
     } else {
-      person.thirst = Math.max(0, person.thirst - 30);
+      person.thirst = Math.max(0, person.thirst - 25);
     }
 
-    // 3. Fuel & Warmth
+    // 3. Communal Hearth & Shelter Thermal Physics
+    const isWinter = season === 'Winter';
+    let baseFuelPerCapita = isWinter ? 10 : season === 'Autumn' ? 5 : season === 'Spring' ? 4 : 2;
+    if (weather.isBlizzard) baseFuelPerCapita += 4;
+    const shelterInsulation = hasShelter ? 0.75 : 1.0;
+    const fuelMultiplier = state.policies.firewoodPriority === 'Maximum Warmth' ? 1.3 : state.policies.firewoodPriority === 'Minimum' ? 0.7 : 1.0;
+    const targetFuel = Math.max(1, Math.round(baseFuelPerCapita * shelterInsulation * fuelMultiplier));
+
     const fuelAvailable = state.resources.fuel.quantity;
-    const fuelGiven = Math.min(targetFuelPerPerson, fuelAvailable);
+    const fuelGiven = Math.min(targetFuel, fuelAvailable);
     state.resources.fuel.quantity -= fuelGiven;
     totalConsumedFuel += fuelGiven;
 
-    const fuelRatio = fuelGiven / targetFuelPerPerson;
-    person.shelterQuality = hasShelter ? 75 : 25;
-    const warmthScore = (fuelRatio * 50) + (person.shelterQuality * 0.3) + (season === 'Summer' ? 30 : season === 'Winter' ? -20 : 0);
-    person.warmth = Math.max(0, Math.min(100, warmthScore));
+    const fuelRatio = fuelGiven / Math.max(1, targetFuel);
+    person.shelterQuality = hasShelter ? 80 : 30;
+    const warmthScore = (fuelRatio * 55) + (person.shelterQuality * 0.25) + (season === 'Summer' ? 25 : season === 'Winter' ? -15 : 5);
+    person.warmth = Math.max(0, Math.min(100, Math.round(warmthScore)));
 
-    if (season === 'Winter' && person.warmth < 35) {
-      // Hypothermia danger
-      person.health = Math.max(0, person.health - 28);
+    if (isWinter && person.warmth < 35) {
+      // Hypothermia Danger
+      person.health = Math.max(0, person.health - 22);
       if (!person.diseases.includes('Hypothermia')) {
         person.diseases.push('Hypothermia');
       }
-      person.temperature = 35.1;
+      person.temperature = 35.2;
     } else {
       person.temperature = 37.0;
       person.diseases = person.diseases.filter((d) => d !== 'Hypothermia');
     }
 
-    // 4. Fatigue & Recovery
+    // 4. Fatigue Recovery
     person.fatigue = Math.max(0, person.fatigue - 20);
 
-    // 5. Mortality Check (Permanent Death)
+    // 5. Mortality Check (Acute Trauma, Dehydration, or Starvation)
     if (person.health <= 0 || person.hunger >= 95 || person.thirst >= 95) {
       person.alive = false;
       state.annualDeaths += 1;
@@ -489,15 +563,13 @@ function simulateIndividualNeedsAndConsumption(state: CivilizationState, rng: Se
         person.causeOfDeath = 'Starvation & Malnutrition';
       } else if (person.diseases.length > 0) {
         person.causeOfDeath = `Fatality from ${person.diseases[0]}`;
-      } else if (person.warmth < 30 && season === 'Winter') {
+      } else if (person.warmth < 30 && isWinter) {
         person.causeOfDeath = 'Severe Hypothermia & Exposure';
-      } else if (person.age > 50) {
-        person.causeOfDeath = 'Old Age Complications';
       } else {
-        person.causeOfDeath = 'Physical Trauma & Sickness';
+        person.causeOfDeath = 'Physical Exhaustion & Trauma';
       }
 
-      // Generational knowledge loss if lorekeeper dies!
+      // Generational knowledge loss if lorekeeper dies
       if (person.role === 'elder_lorekeeper') {
         for (const tech of state.technologies) {
           if (tech.discovered && tech.activeKeepersCount > 0) {
@@ -506,54 +578,112 @@ function simulateIndividualNeedsAndConsumption(state: CivilizationState, rng: Se
         }
       }
     }
+
+    // 5b. Natural Senescence Curve for Elders (Long-Term Anthropological Lifespan)
+    if (person.alive && person.age >= 50) {
+      // Annualized natural hazard evaluated seasonally (risk / 4)
+      const ageHazard = person.age >= 70 ? 0.035 : person.age >= 60 ? 0.018 : 0.007;
+      const vitalityBuffer = (person.health / 100) * (person.warmth / 100);
+      const seasonalMortalityChance = ageHazard * Math.max(0.4, 1.6 - vitalityBuffer);
+
+      if (rng.chance(seasonalMortalityChance)) {
+        person.alive = false;
+        state.annualDeaths += 1;
+        person.deathYear = state.year;
+        person.deathSeason = state.season;
+        person.causeOfDeath = 'Natural Old Age Senescence';
+
+        if (person.role === 'elder_lorekeeper') {
+          for (const tech of state.technologies) {
+            if (tech.discovered && tech.activeKeepersCount > 0) {
+              tech.activeKeepersCount = Math.max(0, tech.activeKeepersCount - 1);
+            }
+          }
+        }
+      }
+    }
   }
 
-  // 6. Natural Births (Spring & Autumn if population well-fed)
-  if ((season === 'Spring' || season === 'Autumn') && livingPeople.length < 250) {
+  // 6. Natural Births & Kinship Mating (Demographic Equilibrium)
+  if ((season === 'Spring' || season === 'Autumn') && livingPeople.length < 320) {
+    const livingMales = livingPeople.filter((p) => p.gender === 'male' && p.age >= 18 && p.age <= 50 && p.alive && p.health >= 50);
     const fertileFemales = livingPeople.filter(
-      (p) => p.gender === 'female' && p.age >= 16 && p.age <= 38 && p.health >= 65 && p.hunger < 40
+      (p) => p.gender === 'female' && p.age >= 17 && p.age <= 40 && p.alive && p.health >= 60 && p.hunger < 35
     );
 
+    // Pair unpartnered adults
+    for (const female of fertileFemales) {
+      if (!female.relationships.partnerId) {
+        const eligiblePartner = livingMales.find((m) => !m.relationships.partnerId && m.id !== female.id);
+        if (eligiblePartner) {
+          female.relationships.partnerId = eligiblePartner.id;
+          eligiblePartner.relationships.partnerId = female.id;
+        }
+      }
+    }
+
+    // Birth probability scaled by clan nutrition and food reserves
+    const totalFoodKg =
+      state.resources.fruit.quantity +
+      state.resources.meat.quantity +
+      state.resources.fish.quantity +
+      state.resources.grains.quantity;
+    const foodAbundanceFactor = Math.min(1.25, Math.max(0.4, totalFoodKg / Math.max(1, livingPeople.length * 80)));
+
     for (const mom of fertileFemales) {
-      if (rng.chance(0.12)) {
+      if (rng.chance(0.10 * foodAbundanceFactor)) {
         const babyGender = rng.chance(0.5) ? 'female' : 'male';
-        const babyNames = babyGender === 'male' ? ['Kip', 'Arlo', 'Tari', 'Orin', 'Baelin'] : ['Tara', 'Shani', 'Lila', 'Nemi', 'Vani'];
+        const babyNames = babyGender === 'male'
+          ? ['Kip', 'Arlo', 'Tari', 'Orin', 'Baelin', 'Duran', 'Bran', 'Keld', 'Jarek', 'Torm']
+          : ['Tara', 'Shani', 'Lila', 'Nemi', 'Vani', 'Mira', 'Kora', 'Sela', 'Brena', 'Zaya'];
+
+        const dad = mom.relationships.partnerId
+          ? state.people.find((p) => p.id === mom.relationships.partnerId && p.alive)
+          : (livingMales.length > 0 ? livingMales[rng.integer(0, livingMales.length - 1)] : undefined);
+
+        const parentName = mom.name.split(' ')[0];
+
         const baby: Person = {
           id: `p-${state.people.length + 1}`,
-          name: `${rng.pick(babyNames)} of ${mom.name.split(' ')[0]}`,
+          name: `${rng.pick(babyNames)} of-${parentName}`,
           age: 0,
           gender: babyGender,
           alive: true,
-          health: 90,
-          hunger: 10,
-          thirst: 10,
+          health: 92,
+          hunger: 5,
+          thirst: 5,
           fatigue: 5,
           temperature: 37.0,
           mentalState: 90,
           injuries: [],
           diseases: [],
           nutrition: 85,
-          shelterQuality: 50,
-          clothingQuality: 30,
-          warmth: 80,
+          shelterQuality: 60,
+          clothingQuality: 35,
+          warmth: 85,
           safety: 85,
           role: 'idle_child',
           skills: {
-            hunting: 5,
-            foraging: 10,
+            hunting: dad ? Math.round(dad.skills.hunting * 0.15) : 5,
+            foraging: Math.round(mom.skills.foraging * 0.20),
             farming: 5,
             stonecraft: 5,
             woodcraft: 5,
             healing: 5,
-            lore: 10,
+            lore: Math.max(10, Math.round(mom.skills.lore * 0.15)),
+            fishing: 10,
           },
           relationships: {
-            parentIds: [mom.id],
+            parentIds: dad ? [mom.id, dad.id] : [mom.id],
             childrenIds: [],
           },
         };
+
         state.people.push(baby);
         mom.relationships.childrenIds.push(baby.id);
+        if (dad) {
+          dad.relationships.childrenIds.push(baby.id);
+        }
         state.annualBirths += 1;
       }
     }
@@ -570,15 +700,18 @@ function simulateSpoilageAndStorage(state: CivilizationState) {
   const hasSmokehouse = state.technologies.find((t) => t.id === 'tech-smoking')?.discovered;
   const hasPottery = state.technologies.find((t) => t.id === 'tech-pottery')?.discovered;
 
-  // Meat and fish spoil fast without smoking
-  const meatSpoilageRate = hasSmokehouse ? 0.08 : 0.35;
-  const fishSpoilageRate = hasSmokehouse ? 0.09 : 0.40;
-  const grainSpoilageRate = hasPottery ? 0.03 : 0.08;
+  // Infrastructure storage facilities directly mitigate natural decay
+  const hasSmokingFacility = hasSmokehouse || (state.infrastructure.smokingRacks > 0);
+  const granaryBinsBonus = Math.min(0.04, state.infrastructure.granaryBins * 0.008);
+
+  const meatSpoilageRate = hasSmokingFacility ? 0.08 : 0.28;
+  const fishSpoilageRate = hasSmokingFacility ? 0.09 : 0.32;
+  const grainSpoilageRate = Math.max(0.02, (hasPottery ? 0.03 : 0.06) - granaryBinsBonus);
 
   state.resources.meat.quantity = Math.max(0, Math.round(state.resources.meat.quantity * (1 - meatSpoilageRate)));
   state.resources.fish.quantity = Math.max(0, Math.round(state.resources.fish.quantity * (1 - fishSpoilageRate)));
   state.resources.grains.quantity = Math.max(0, Math.round(state.resources.grains.quantity * (1 - grainSpoilageRate)));
-  state.resources.fruit.quantity = Math.max(0, Math.round(state.resources.fruit.quantity * 0.70));
+  state.resources.fruit.quantity = Math.max(0, Math.round(state.resources.fruit.quantity * 0.72));
 }
 
 function simulateHealthAndMedicine(state: CivilizationState, rng: SeededRandom) {
