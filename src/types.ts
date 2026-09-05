@@ -566,6 +566,8 @@ export type HistoricalEventType =
   | 'political'
   | 'environmental';
 
+export type CivilizationState = Civilization;
+
 export interface PolicySet {
   foodRationing: 'Frugal' | 'Normal' | 'Generous';
   waterConservation: boolean;

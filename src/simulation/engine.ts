@@ -178,7 +178,7 @@ function simulateSeasonalWeather(state: CivilizationState, rng: SeededRandom) {
   };
 }
 
-function simulateEcosystemRegeneration(state: CivilizationState) {
+function simulateEcosystemRegeneration(state: CivilizationState, rng: SeededRandom) {
   const seasonMult = state.season === 'Spring' ? 1.4 : state.season === 'Summer' ? 1.2 : state.season === 'Autumn' ? 0.9 : 0.3;
   const droughtFactor = state.weather.isDrought ? 0.4 : 1.0;
 
@@ -200,7 +200,7 @@ function simulateEcosystemRegeneration(state: CivilizationState) {
   }
 }
 
-function simulateProduction(state: CivilizationState) {
+function simulateProduction(state: CivilizationState, rng: SeededRandom) {
   const livingPeople = state.people.filter((p) => p.alive);
   const season = state.season;
   const weather = state.weather;

@@ -27,8 +27,6 @@ const FIRST_NAMES_FEMALE = [
   'Fiora', 'Leda', 'Orla', 'Nesta', 'Rowa', 'Dalia', 'Hessa', 'Yeva', 'Solan', 'Rina'
 ];
 
-import { SeededRandom } from './utils/Random';
-
 export function createInitialPeople(rng: SeededRandom): Person[] {
   const people: Person[] = [];
 
