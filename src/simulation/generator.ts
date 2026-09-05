@@ -9,6 +9,7 @@ import {
   GenerationalKnowledgeTech,
   Season,
 } from '../types';
+import { SeededRandom } from './utils/Random';
 
 const FIRST_NAMES_MALE = [
   'Kael', 'Toran', 'Bram', 'Enki', 'Ronak', 'Vael', 'Dak', 'Joran', 'Thul', 'Khor',
@@ -26,7 +27,9 @@ const FIRST_NAMES_FEMALE = [
   'Fiora', 'Leda', 'Orla', 'Nesta', 'Rowa', 'Dalia', 'Hessa', 'Yeva', 'Solan', 'Rina'
 ];
 
-export function createInitialPeople(): Person[] {
+import { SeededRandom } from './utils/Random';
+
+export function createInitialPeople(rng: SeededRandom): Person[] {
   const people: Person[] = [];
 
   for (let i = 0; i < 100; i++) {
@@ -39,13 +42,13 @@ export function createInitialPeople(): Person[] {
     // Realistic prehistoric demographic age distribution
     let age: number;
     if (i < 15) {
-      age = 3 + Math.floor(Math.random() * 9); // 3 - 11 children
+      age = 3 + rng.integer(0, 8); // 3 - 11 children
     } else if (i < 50) {
-      age = 13 + Math.floor(Math.random() * 15); // 13 - 27 prime youth
+      age = 13 + rng.integer(0, 14); // 13 - 27 prime youth
     } else if (i < 85) {
-      age = 28 + Math.floor(Math.random() * 17); // 28 - 44 experienced adults
+      age = 28 + rng.integer(0, 16); // 28 - 44 experienced adults
     } else {
-      age = 45 + Math.floor(Math.random() * 12); // 45 - 56 respected elders
+      age = 45 + rng.integer(0, 11); // 45 - 56 respected elders
     }
 
     let role: RoleType = 'forager';
@@ -74,13 +77,13 @@ export function createInitialPeople(): Person[] {
       age,
       gender,
       alive: true,
-      health: 88 + Math.floor(Math.random() * 10),
-      hunger: 10 + Math.floor(Math.random() * 15),
-      thirst: 10 + Math.floor(Math.random() * 15),
-      fatigue: 15 + Math.floor(Math.random() * 20),
-      temperature: 36.9 + (Math.random() * 0.4 - 0.2),
-      mentalState: 75 + Math.floor(Math.random() * 20),
-      injuries: Math.random() < 0.12 ? ['Flint Scrape'] : [],
+      health: 88 + rng.integer(0, 9),
+      hunger: 10 + rng.integer(0, 14),
+      thirst: 10 + rng.integer(0, 14),
+      fatigue: 15 + rng.integer(0, 19),
+      temperature: 36.9 + (rng.next() * 0.4 - 0.2),
+      mentalState: 75 + rng.integer(0, 19),
+      injuries: rng.chance(0.12) ? ['Flint Scrape'] : [],
       diseases: [],
       nutrition: 80,
       shelterQuality: 35,
@@ -89,13 +92,13 @@ export function createInitialPeople(): Person[] {
       safety: 75,
       role,
       skills: {
-        hunting: role === 'hunter' ? 55 + Math.floor(Math.random() * 25) : 20 + Math.floor(Math.random() * 20),
-        foraging: role === 'forager' ? 55 + Math.floor(Math.random() * 25) : 25 + Math.floor(Math.random() * 20),
+        hunting: role === 'hunter' ? 55 + rng.integer(0, 24) : 20 + rng.integer(0, 19),
+        foraging: role === 'forager' ? 55 + rng.integer(0, 24) : 25 + rng.integer(0, 19),
         farming: 5,
-        stonecraft: role === 'stonecutter' || role === 'toolmaker' ? 50 + Math.floor(Math.random() * 25) : 15,
-        woodcraft: role === 'lumberjack' || role === 'builder' ? 50 + Math.floor(Math.random() * 25) : 15,
-        healing: role === 'herbalist' ? 60 + Math.floor(Math.random() * 25) : 10,
-        lore: role === 'elder_lorekeeper' ? 70 + Math.floor(Math.random() * 20) : 15,
+        stonecraft: role === 'stonecutter' || role === 'toolmaker' ? 50 + rng.integer(0, 24) : 15,
+        woodcraft: role === 'lumberjack' || role === 'builder' ? 50 + rng.integer(0, 24) : 15,
+        healing: role === 'herbalist' ? 60 + rng.integer(0, 24) : 10,
+        lore: role === 'elder_lorekeeper' ? 70 + rng.integer(0, 19) : 15,
       },
       relationships: {
         parentIds: [],
@@ -515,8 +518,8 @@ export function createInitialInfrastructure(): SettlementInfrastructure {
   };
 }
 
-export function createInitialCivilization(): CivilizationState {
-  const people = createInitialPeople();
+export function createInitialCivilization(rng: SeededRandom): CivilizationState {
+  const people = createInitialPeople(rng);
   const resources = createInitialResources();
   const regions = createInitialRegions();
   const technologies = createInitialTechs();

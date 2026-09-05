@@ -8,42 +8,81 @@ import {
   ThreatLevel,
   YearlyResourceReport,
 } from '../types';
+import { SeededRandom } from './utils/Random';
+import { SimulationContext, createSimulationContext, DEFAULT_CONFIG } from './context';
 
 const SEASONS_ORDER: Season[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
 
-export function advanceSimulationSeason(prevState: CivilizationState): CivilizationState {
-  const state: CivilizationState = JSON.parse(JSON.stringify(prevState));
+/**
+ * Global RNG instance for simulation determinism
+ * Initialized when the world is created with a seed
+ */
+let globalRng: SeededRandom | null = null;
 
+/**
+ * Initialize the global RNG with a seed
+ * Must be called before any simulation steps
+ */
+export function initializeRNG(seed: number): void {
+  globalRng = new SeededRandom(seed);
+}
+
+/**
+ * Get the global RNG instance
+ * Throws if not initialized
+ */
+export function getRNG(): SeededRandom {
+  if (!globalRng) {
+    throw new Error('RNG not initialized. Call initializeRNG() first.');
+  }
+  return globalRng;
+}
+
+/**
+ * Create a simulation context for the current state
+ */
+function createContext(state: CivilizationState): SimulationContext {
+  if (!globalRng) {
+    // Auto-initialize with a default seed if not set
+    globalRng = new SeededRandom(12345);
+  }
+  return createSimulationContext(state, globalRng.getSeed(), DEFAULT_CONFIG);
+}
+
+export function advanceSimulationSeason(prevState: CivilizationState): CivilizationState {
+  const context = createContext(prevState);
+  const state = prevState; // Work directly on state to avoid JSON cloning
+  
   const currentSeason = state.season;
   const currentYear = state.year;
   const isEndOfYear = currentSeason === 'Winter';
-
+  
   // 1. Weather & Environmental Dynamics for the new season
-  simulateSeasonalWeather(state);
-
+  simulateSeasonalWeather(state, context.rng);
+  
   // 2. Resource Regeneration in Nature
-  simulateEcosystemRegeneration(state);
-
+  simulateEcosystemRegeneration(state, context.rng);
+  
   // 3. Labor & Production Phase
-  const productionThisSeason = simulateProduction(state);
-
+  const productionThisSeason = simulateProduction(state, context.rng);
+  
   // 4. Consumption & Individual Survival Needs Phase
-  const consumptionThisSeason = simulateIndividualNeedsAndConsumption(state);
-
+  const consumptionThisSeason = simulateIndividualNeedsAndConsumption(state, context.rng);
+  
   // 5. Spoilage and Storage Degradation
-  simulateSpoilageAndStorage(state);
-
+  simulateSpoilageAndStorage(state, context.rng);
+  
   // 6. Disease, Injuries, and Healthcare
-  simulateHealthAndMedicine(state);
-
+  simulateHealthAndMedicine(state, context.rng);
+  
   // 7. Generational Knowledge & Tech Research
-  simulateGenerationalKnowledge(state);
-
+  simulateGenerationalKnowledge(state, context.rng);
+  
   // 8. Exploration & Scouting
-  simulateExploration(state);
-
+  simulateExploration(state, context.rng);
+  
   // 9. Crisis Detection & Cascades
-  simulateCrisesAndCascades(state);
+  simulateCrisesAndCascades(state, context.rng);
 
   // Accumulate annual figures
   state.accumulatedAnnualProduction.foodKg += productionThisSeason.foodKg;
@@ -116,18 +155,18 @@ export function simulateYear(prevState: CivilizationState): { state: Civilizatio
   return { state: currentState, report };
 }
 
-function simulateSeasonalWeather(state: CivilizationState) {
+function simulateSeasonalWeather(state: CivilizationState, rng: SeededRandom) {
   const s = state.season;
   let baseTemp = 15;
-  if (s === 'Spring') baseTemp = 14 + Math.floor(Math.random() * 6);
-  if (s === 'Summer') baseTemp = 24 + Math.floor(Math.random() * 8);
-  if (s === 'Autumn') baseTemp = 11 + Math.floor(Math.random() * 6);
-  if (s === 'Winter') baseTemp = -4 + Math.floor(Math.random() * 7);
+  if (s === 'Spring') baseTemp = 14 + rng.integer(0, 5);
+  if (s === 'Summer') baseTemp = 24 + rng.integer(0, 7);
+  if (s === 'Autumn') baseTemp = 11 + rng.integer(0, 5);
+  if (s === 'Winter') baseTemp = -4 + rng.integer(0, 6);
 
-  const isDrought = s === 'Summer' && Math.random() < 0.20;
-  const isBlizzard = s === 'Winter' && baseTemp < -1 && Math.random() < 0.25;
-  const isStorm = (s === 'Spring' || s === 'Autumn') && Math.random() < 0.22;
-  const isRaining = !isDrought && !isBlizzard && Math.random() < 0.35;
+  const isDrought = s === 'Summer' && rng.chance(0.20);
+  const isBlizzard = s === 'Winter' && baseTemp < -1 && rng.chance(0.25);
+  const isStorm = (s === 'Spring' || s === 'Autumn') && rng.chance(0.22);
+  const isRaining = !isDrought && !isBlizzard && rng.chance(0.35);
 
   state.weather = {
     currentTempC: baseTemp,
@@ -135,7 +174,7 @@ function simulateSeasonalWeather(state: CivilizationState) {
     isBlizzard,
     isStorm,
     isRaining,
-    forecastReliabilityPercent: 55 + Math.floor(Math.random() * 30),
+    forecastReliabilityPercent: 55 + rng.integer(0, 29),
   };
 }
 
@@ -213,7 +252,7 @@ function simulateProduction(state: CivilizationState) {
           const successChance = Math.min(0.85, (huntingSkill / 100) * 0.7 + (hasFlintKnapping ? 0.15 : 0.05));
           const winterPenalty = season === 'Winter' ? 0.75 : 1.0;
 
-          if (Math.random() < successChance * winterPenalty) {
+          if (rng.chance(successChance * winterPenalty)) {
             const meatKg = Math.round((90 + huntingSkill * 1.5) * toolEfficiency * efficiency);
             state.resources.meat.quantity += meatKg;
             state.resources.bone.quantity += Math.round(meatKg * 0.15);
@@ -223,7 +262,7 @@ function simulateProduction(state: CivilizationState) {
             producedFoodKg += meatKg;
           } else {
             // Unsuccessful hunt, minor risk of animal counter-attack
-            if (Math.random() < 0.08) {
+            if (rng.chance(0.08)) {
               person.injuries.push('Boar Tusk Gash');
               person.health = Math.max(10, person.health - 25);
             }
@@ -278,7 +317,7 @@ function simulateProduction(state: CivilizationState) {
         quarriedStone += quarried;
 
         // Occasional ore nodule discovery
-        if (Math.random() < 0.2) {
+        if (rng.chance(0.2)) {
           state.resources.ores.quantity += 3;
         }
         person.skills.stonecraft = Math.min(100, person.skills.stonecraft + 0.5);
@@ -476,12 +515,12 @@ function simulateIndividualNeedsAndConsumption(state: CivilizationState) {
     );
 
     for (const mom of fertileFemales) {
-      if (Math.random() < 0.12) {
-        const babyGender = Math.random() < 0.5 ? 'female' : 'male';
+      if (rng.chance(0.12)) {
+        const babyGender = rng.chance(0.5) ? 'female' : 'male';
         const babyNames = babyGender === 'male' ? ['Kip', 'Arlo', 'Tari', 'Orin', 'Baelin'] : ['Tara', 'Shani', 'Lila', 'Nemi', 'Vani'];
         const baby: Person = {
           id: `p-${state.people.length + 1}`,
-          name: `${babyNames[Math.floor(Math.random() * babyNames.length)]} of ${mom.name.split(' ')[0]}`,
+          name: `${rng.pick(babyNames)} of ${mom.name.split(' ')[0]}`,
           age: 0,
           gender: babyGender,
           alive: true,
@@ -550,7 +589,7 @@ function simulateHealthAndMedicine(state: CivilizationState) {
 
   for (const person of living) {
     // Waterborne illness risk
-    if (!cleanWater && Math.random() < 0.15) {
+    if (!cleanWater && rng.chance(0.15)) {
       if (!person.diseases.includes('Camp Dysentery')) {
         person.diseases.push('Camp Dysentery');
         person.health = Math.max(10, person.health - 20);
@@ -558,7 +597,7 @@ function simulateHealthAndMedicine(state: CivilizationState) {
     }
 
     // Crowd density infections if hygiene is neglected
-    if (living.length > 120 && Math.random() < 0.08) {
+    if (living.length > 120 && rng.chance(0.08)) {
       if (!person.diseases.includes('Respiratory Fever')) {
         person.diseases.push('Respiratory Fever');
       }
@@ -569,7 +608,7 @@ function simulateHealthAndMedicine(state: CivilizationState) {
       if (herbalists.length > 0 && state.resources.plants.quantity >= 5) {
         state.resources.plants.quantity -= 5;
         const cureChance = hasMedicineTech ? 0.65 : 0.35;
-        if (Math.random() < cureChance) {
+        if (rng.chance(cureChance)) {
           person.diseases.pop();
           person.injuries.pop();
           person.health = Math.min(100, person.health + 15);
@@ -613,7 +652,7 @@ function simulateExploration(state: CivilizationState) {
   const targetRegion = unexplored[0];
   const explorationPower = scouts.length * 15;
 
-  if (Math.random() * 100 < explorationPower) {
+  if (rng.chance(explorationPower / 100)) {
     targetRegion.explored = true;
   }
 }
