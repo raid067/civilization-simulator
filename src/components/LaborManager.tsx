@@ -146,27 +146,28 @@ export const LaborManager: React.FC<LaborManagerProps> = ({
           <div>
             <h2 className="text-lg font-bold text-stone-100 flex items-center gap-2">
               <Users className="w-5 h-5 text-amber-400" />
-              Labor Allocation & Clan Taskforce (Section 19)
+              Emergent Division of Labor & Societal Dynamics (Section 19)
             </h2>
             <p className="text-xs text-stone-400 mt-1 max-w-2xl">
-              Every resource requires dedicated human labor. A person cannot be simultaneously farming, hunting,
-              fighting, and building. Allocate your surviving workforce prudently.
+              Every survival discipline demands dedicated human labor. Agents self-organize according to metabolic
+              priorities (hydration, caloric intake, thermal survival). Observers can examine autonomous equilibrium
+              or apply counterfactual societal policies.
             </p>
           </div>
 
           <div className="flex items-center gap-3 bg-stone-950 px-4 py-2 rounded-lg border border-stone-800 text-xs">
             <div>
-              <div className="text-stone-400">Total Workforce</div>
-              <div className="font-mono font-bold text-emerald-400 text-base">{adults.length} adults</div>
+              <div className="text-stone-400">Total Active Workforce</div>
+              <div className="font-mono font-bold text-emerald-400 text-base">{adults.length} adult agents</div>
             </div>
             <div className="border-l border-stone-800 pl-3">
-              <div className="text-stone-400">Dependent Children</div>
+              <div className="text-stone-400">Dependent Cohort (Children)</div>
               <div className="font-mono font-bold text-stone-300 text-base">{children.length}</div>
             </div>
           </div>
         </div>
 
-        {/* Autonomy & Presets Bar */}
+        {/* Autonomy & Archetypes Bar */}
         <div className="mt-4 pt-4 border-t border-stone-800/80 flex flex-wrap items-center justify-between gap-4">
           {/* Autonomy Toggle */}
           <div className="flex items-center gap-3">
@@ -180,52 +181,52 @@ export const LaborManager: React.FC<LaborManagerProps> = ({
               />
               <div className="w-10 h-5 bg-stone-800 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
               <span className="ml-2.5 text-xs font-semibold text-stone-200">
-                Tribal Survival Autonomy:
+                Autonomous Agent Allocation:
                 <span className={isAutonomyOn ? 'text-amber-400 ml-1 font-bold' : 'text-stone-500 ml-1'}>
-                  {isAutonomyOn ? 'ACTIVE' : 'MANUAL'}
+                  {isAutonomyOn ? 'ACTIVE (Self-Organizing)' : 'MANUAL INTERVENTION'}
                 </span>
               </span>
             </label>
             <span className="text-[11px] text-stone-500 hidden sm:inline">
-              (Auto-reallocates labor when food, water, or firewood drop critically low)
+              (Agents autonomously reallocate labor upon metabolic or environmental stress thresholds)
             </span>
           </div>
 
-          {/* Quick Presets */}
+          {/* Societal Archetypes */}
           {onApplyPreset && (
             <div className="flex items-center gap-1.5 text-xs">
-              <span className="text-[11px] text-stone-400 font-medium mr-1">Presets:</span>
+              <span className="text-[11px] text-stone-400 font-medium mr-1">Archetypes:</span>
               <button
                 id="preset-balanced"
                 onClick={() => onApplyPreset('balanced')}
                 className="px-2.5 py-1 rounded bg-stone-950 hover:bg-stone-800 border border-stone-800 text-stone-300 text-xs transition-colors"
-                title="Balanced survival allocations across all key disciplines"
+                title="Scenario: Steady-state baseline labor equilibrium"
               >
-                ⚖️ Balanced
+                ⚖️ Nomadic Baseline
               </button>
               <button
                 id="preset-food"
                 onClick={() => onApplyPreset('food')}
                 className="px-2.5 py-1 rounded bg-stone-950 hover:bg-stone-800 border border-stone-800 text-amber-300 text-xs transition-colors"
-                title="Mobilize hunters and foragers for maximum calorie generation"
+                title="Scenario: Focus workforce heavily on calorie acquisition"
               >
-                🍞 Food Push
+                🍞 Caloric Focus
               </button>
               <button
                 id="preset-winter"
                 onClick={() => onApplyPreset('winter')}
                 className="px-2.5 py-1 rounded bg-stone-950 hover:bg-stone-800 border border-stone-800 text-orange-300 text-xs transition-colors"
-                title="Prioritize lumberjacks and warm shelters for freezing blizzards"
+                title="Scenario: Prioritize firewood harvesting and thermal insulation against frost"
               >
-                ❄️ Winter Prep
+                ❄️ Thermal Buffer
               </button>
               <button
                 id="preset-lore"
                 onClick={() => onApplyPreset('lore')}
                 className="px-2.5 py-1 rounded bg-stone-950 hover:bg-stone-800 border border-stone-800 text-purple-300 text-xs transition-colors"
-                title="Assign elder lorekeepers and scouts to preserve oral heritage"
+                title="Scenario: Dedicate senior agents to preserving oral technologies"
               >
-                🔬 Knowledge
+                🔬 Epistemic Focus
               </button>
             </div>
           )}
@@ -259,7 +260,7 @@ export const LaborManager: React.FC<LaborManagerProps> = ({
                       onClick={() => onUpdateRoleDistribution(def.id, -1)}
                       disabled={count <= 0}
                       className="w-5 h-5 flex items-center justify-center rounded bg-stone-800 hover:bg-stone-700 text-stone-200 disabled:opacity-30 text-xs font-bold transition-colors"
-                      title="Remove 1 worker from this role"
+                      title="Counterfactual adjustment: Reassign 1 adult agent from this discipline"
                     >
                       -
                     </button>
@@ -269,7 +270,7 @@ export const LaborManager: React.FC<LaborManagerProps> = ({
                     <button
                       onClick={() => onUpdateRoleDistribution(def.id, 1)}
                       className="w-5 h-5 flex items-center justify-center rounded bg-amber-700 hover:bg-amber-600 text-stone-100 text-xs font-bold transition-colors"
-                      title="Reassign 1 adult worker to this role"
+                      title="Counterfactual adjustment: Assign 1 adult agent to this discipline"
                     >
                       +
                     </button>
@@ -282,7 +283,7 @@ export const LaborManager: React.FC<LaborManagerProps> = ({
               {/* Worker Avatars Preview */}
               <div className="border-t border-stone-800/80 pt-2.5">
                 <div className="flex items-center justify-between text-[11px] text-stone-500 mb-1.5">
-                  <span>Assigned Members ({count})</span>
+                  <span>Active Cohort ({count} agents)</span>
                   <span>Avg Health: {workersInRole.length > 0 ? Math.round(workersInRole.reduce((a, b) => a + b.health, 0) / workersInRole.length) : 0}%</span>
                 </div>
                 <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">

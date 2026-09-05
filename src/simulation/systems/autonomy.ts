@@ -4,8 +4,8 @@ import { CivilizationState, RoleType, Person } from '../../types';
 /**
  * AUTONOMY SYSTEM — TRIBAL SURVIVAL WISDOM
  * 
- * Automatically balances labor and vital roles so the tribe does not
- * blindly extinguish itself when the player watches in auto-play mode.
+ * Automatically balances labor and vital roles so the cohort self-organizes
+ * against metabolic and ecological pressures during continuous simulation runs.
  * 
  * Survival Hierarchy of Needs:
  * 1. Water Critical Reserve (< 12 days supply)

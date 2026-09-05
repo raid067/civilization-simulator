@@ -81,16 +81,16 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
         {/* Title & Civilization Identifier */}
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-amber-600/30 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold">
-            🌍
+            🏛️
           </div>
           <div>
             <h1 className="text-base font-bold tracking-tight text-amber-100 flex items-center gap-2">
-              AI Civilization Engine
+              Computational Civilization Simulator
               <span className="text-xs px-2 py-0.5 rounded bg-stone-800 text-stone-400 border border-stone-700 font-mono">
-                Clan of the River
+                Cohort: Clan of the River
               </span>
             </h1>
-            <p className="text-xs text-stone-400">Survival, Resources & Emergent Human Evolution</p>
+            <p className="text-xs text-stone-400">Autonomous Demographic & Ecological Simulation Environment</p>
           </div>
         </div>
 
@@ -114,13 +114,13 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
               <Sun className="w-3.5 h-3.5 text-amber-400" />
             )}
             <span className="font-mono text-stone-200">{state.weather.currentTempC}°C</span>
-            {state.weather.isDrought && <span className="text-[10px] text-orange-400 bg-orange-950/80 px-1 rounded">Drought</span>}
-            {state.weather.isBlizzard && <span className="text-[10px] text-cyan-400 bg-cyan-950/80 px-1 rounded">Blizzard</span>}
+            {state.weather.isDrought && <span className="text-[10px] text-orange-400 bg-orange-950/80 px-1 rounded">Drought Stress</span>}
+            {state.weather.isBlizzard && <span className="text-[10px] text-cyan-400 bg-cyan-950/80 px-1 rounded">Blizzard Stress</span>}
           </div>
 
           <div className="flex items-center gap-1.5 text-stone-400">
             <Wind className="w-3 h-3 text-stone-500" />
-            <span>Forecast reliability: {state.weather.forecastReliabilityPercent}%</span>
+            <span>Atmospheric reliability: {state.weather.forecastReliabilityPercent}%</span>
           </div>
         </div>
 
@@ -128,10 +128,10 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
         <div className="flex items-center gap-3">
           <div className="text-right">
             <div className="text-xs font-semibold text-stone-200">
-              <span className="text-emerald-400 font-mono text-sm">{livingCount}</span> living
-              {deadCount > 0 && <span className="text-stone-500 text-[11px] ml-1.5">({deadCount} dead)</span>}
+              <span className="text-emerald-400 font-mono text-sm">{livingCount}</span> living agents
+              {deadCount > 0 && <span className="text-stone-500 text-[11px] ml-1.5">({deadCount} deceased)</span>}
             </div>
-            <div className="text-[10px] text-stone-400">Initial: 100 humans</div>
+            <div className="text-[10px] text-stone-400">Initial cohort: 100 agents</div>
           </div>
 
           <div className={`text-xs px-2.5 py-1 rounded-full border font-semibold flex items-center gap-1.5 ${getThreatColor(currentThreat)}`}>
@@ -147,9 +147,9 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
             onClick={onStepSeason}
             disabled={isPlaying}
             className="px-2.5 py-1 text-xs font-medium bg-stone-800 hover:bg-stone-700 active:bg-stone-900 disabled:opacity-40 rounded text-stone-200 transition-colors"
-            title="Advance 1 Season (90 days)"
+            title="Step forward 1 Season (90 model days) [Shortcut: S]"
           >
-            +1 Season
+            Step Season (+90d)
           </button>
 
           <button
@@ -157,9 +157,9 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
             onClick={onStepYear}
             disabled={isPlaying}
             className="px-2.5 py-1 text-xs font-medium bg-amber-900/60 hover:bg-amber-800/80 active:bg-amber-950 text-amber-200 border border-amber-700/50 rounded transition-colors"
-            title="Simulate full 1 year (4 seasons) and generate Section 30 report"
+            title="Step forward 1 full solar cycle (4 seasons) and compile Section 30 report [Shortcut: Y]"
           >
-            +1 Year
+            Step Solar Cycle (+1y)
           </button>
 
           <button
@@ -170,7 +170,7 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
                 ? 'bg-amber-500 text-stone-950 font-bold hover:bg-amber-400'
                 : 'bg-stone-800 text-stone-200 hover:bg-stone-700'
             }`}
-            title={isPlaying ? 'Pause Simulation' : 'Auto Play Simulation'}
+            title={isPlaying ? 'Pause Continuous Simulation Loop [Shortcut: Space]' : 'Start Continuous Simulation Loop [Shortcut: Space]'}
           >
             {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
           </button>
@@ -184,6 +184,7 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
                   className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
                     playSpeed === speed ? 'bg-amber-600 text-white' : 'text-stone-400 hover:bg-stone-800'
                   }`}
+                  title={`Set simulation tick rate to ${speed}x [Shortcuts: 1, 2, 3]`}
                 >
                   {speed}x
                 </button>
@@ -195,7 +196,7 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({
             id="btn-reset-simulation"
             onClick={onReset}
             className="p-1.5 text-stone-400 hover:text-red-400 hover:bg-stone-800 rounded transition-colors ml-1"
-            title="Reset world to Year 0 with 100 fresh humans"
+            title="Re-seed & Re-initialize Simulation Cohort at Year 0"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>

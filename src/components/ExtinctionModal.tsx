@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Skull, AlertTriangle, RotateCcw, Award, BookOpen, Users, Droplets, Utensils, Thermometer, ShieldAlert } from 'lucide-react';
 import { CivilizationState } from '../types';
 
@@ -66,15 +66,15 @@ export const ExtinctionModal: React.FC<ExtinctionModalProps> = ({ state, onReset
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs px-2.5 py-0.5 rounded bg-red-950 text-red-400 border border-red-800/80 font-bold uppercase tracking-wider">
-                Total Extinction Event
+                Terminal Demographic Collapse • Run Terminated
               </span>
             </div>
             <h2 id="extinction-title" className="text-2xl font-bold text-stone-100 mt-1">
-              Clan of the River Has Perished
+              Demographic Extinction & Ecological Run Failure
             </h2>
             <p className="text-xs text-stone-400 mt-0.5">
-              Survival lasted <span className="text-amber-400 font-bold">{state.year} years</span> and{' '}
-              <span className="text-amber-400 font-bold">{state.season}</span> across {totalGenerations} generation(s).
+              The simulated population endured for <span className="text-amber-400 font-bold">{state.year} years</span> and{' '}
+              <span className="text-amber-400 font-bold">{state.season}</span> across {totalGenerations} generation(s) before terminal collapse.
             </p>
           </div>
         </div>
@@ -83,7 +83,7 @@ export const ExtinctionModal: React.FC<ExtinctionModalProps> = ({ state, onReset
           <div className="bg-stone-950 p-3.5 rounded-xl border border-stone-800">
             <div className="text-[11px] text-stone-400 flex items-center gap-1.5 mb-1">
               <Users className="w-3.5 h-3.5 text-stone-500" />
-              Final Census
+              Terminal Census
             </div>
             <div className="text-xl font-bold font-mono text-red-400">0 / {state.people.length}</div>
             <div className="text-[10px] text-stone-500">100% deceased</div>
@@ -91,10 +91,10 @@ export const ExtinctionModal: React.FC<ExtinctionModalProps> = ({ state, onReset
           <div className="bg-stone-950 p-3.5 rounded-xl border border-stone-800">
             <div className="text-[11px] text-stone-400 flex items-center gap-1.5 mb-1">
               <Award className="w-3.5 h-3.5 text-amber-500" />
-              Duration
+              Run Duration
             </div>
             <div className="text-xl font-bold font-mono text-amber-300">{state.year}y</div>
-            <div className="text-[10px] text-stone-500">Season: {state.season}</div>
+            <div className="text-[10px] text-stone-500">Final season: {state.season}</div>
           </div>
           <div className="bg-stone-950 p-3.5 rounded-xl border border-stone-800">
             <div className="text-[11px] text-stone-400 flex items-center gap-1.5 mb-1">
@@ -109,54 +109,54 @@ export const ExtinctionModal: React.FC<ExtinctionModalProps> = ({ state, onReset
           <div className="bg-stone-950 p-3.5 rounded-xl border border-stone-800">
             <div className="text-[11px] text-stone-400 flex items-center gap-1.5 mb-1">
               <ShieldAlert className="w-3.5 h-3.5 text-orange-400" />
-              Annual Records
+              Annual Ledgers
             </div>
             <div className="text-xl font-bold font-mono text-orange-300">
               {state.annualReports.length}
             </div>
-            <div className="text-[10px] text-stone-500">Ledger chronicles</div>
+            <div className="text-[10px] text-stone-500">Section 30 archives</div>
           </div>
         </div>
 
         <div className="bg-stone-950/60 border border-stone-800 rounded-xl p-4 mb-6">
           <h3 className="text-xs font-bold text-stone-300 uppercase tracking-wider mb-3 flex items-center gap-2">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-            Mortality Etiology & Collapse Root Causes
+            Forensic Mortality Etiology & Collapse Root Causes
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
             <div className="flex items-center justify-between p-2 rounded-lg bg-stone-900 border border-stone-800">
               <span className="flex items-center gap-1.5 text-stone-300">
-                <Utensils className="w-3 h-3 text-amber-400" /> Starvation
+                <Utensils className="w-3 h-3 text-amber-400" /> Starvation Deficit
               </span>
               <span className="font-mono font-bold text-red-400">{deathCauses.starvation}</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-lg bg-stone-900 border border-stone-800">
               <span className="flex items-center gap-1.5 text-stone-300">
-                <Droplets className="w-3 h-3 text-cyan-400" /> Dehydration
+                <Droplets className="w-3 h-3 text-cyan-400" /> Dehydration Deficit
               </span>
               <span className="font-mono font-bold text-red-400">{deathCauses.dehydration}</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-lg bg-stone-900 border border-stone-800">
               <span className="flex items-center gap-1.5 text-stone-300">
-                <Thermometer className="w-3 h-3 text-blue-400" /> Hypothermia
+                <Thermometer className="w-3 h-3 text-blue-400" /> Thermal Hypothermia
               </span>
               <span className="font-mono font-bold text-red-400">{deathCauses.hypothermia}</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-lg bg-stone-900 border border-stone-800">
               <span className="flex items-center gap-1.5 text-stone-300">
-                <Skull className="w-3 h-3 text-pink-400" /> Infection/Illness
+                <Skull className="w-3 h-3 text-pink-400" /> Infection / Pathogen
               </span>
               <span className="font-mono font-bold text-red-400">{deathCauses.infection + deathCauses.illness}</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-lg bg-stone-900 border border-stone-800">
               <span className="flex items-center gap-1.5 text-stone-300">
-                <ShieldAlert className="w-3 h-3 text-orange-400" /> Trauma/Predation
+                <ShieldAlert className="w-3 h-3 text-orange-400" /> Physical Trauma
               </span>
               <span className="font-mono font-bold text-red-400">{deathCauses.trauma}</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-lg bg-stone-900 border border-stone-800">
               <span className="flex items-center gap-1.5 text-stone-300">
-                <Award className="w-3 h-3 text-emerald-400" /> Old Age
+                <Award className="w-3 h-3 text-emerald-400" /> Natural Senescence
               </span>
               <span className="font-mono font-bold text-emerald-400">{deathCauses.old_age}</span>
             </div>
@@ -169,7 +169,7 @@ export const ExtinctionModal: React.FC<ExtinctionModalProps> = ({ state, onReset
             onClick={onClose}
             className="px-4 py-2.5 rounded-xl border border-stone-700 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-semibold transition-colors"
           >
-            Review Cemetery Records
+            Examine Forensic Census Records
           </button>
           <button
             id="btn-extinction-restart"
@@ -177,7 +177,7 @@ export const ExtinctionModal: React.FC<ExtinctionModalProps> = ({ state, onReset
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-stone-950 text-xs font-bold transition-all shadow-lg shadow-amber-900/30"
           >
             <RotateCcw className="w-4 h-4" />
-            Restart Civilization (Year 0)
+            Initialize New Simulation Run
           </button>
         </div>
       </div>

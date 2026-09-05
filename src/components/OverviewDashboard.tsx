@@ -128,13 +128,13 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         <div className="bg-stone-900 border border-stone-800 p-3.5 rounded-xl">
           <div className="flex items-center justify-between text-xs text-stone-400 mb-1">
             <span className="flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-amber-400" /> Population
+              <Users className="w-3.5 h-3.5 text-amber-400" /> Active Cohort
             </span>
             <span className="font-mono text-stone-500">100 base</span>
           </div>
           <div className="text-2xl font-bold font-mono text-stone-100">{totalLiving}</div>
           <div className="text-[11px] text-stone-500 mt-1">
-            {100 - totalLiving > 0 ? `${100 - totalLiving} deceased` : 'Full starting cohort'}
+            {100 - totalLiving > 0 ? `${100 - totalLiving} deceased agents` : 'Full starting cohort'}
           </div>
         </div>
 
@@ -142,53 +142,53 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         <div className="bg-stone-900 border border-stone-800 p-3.5 rounded-xl">
           <div className="flex items-center justify-between text-xs text-stone-400 mb-1">
             <span className="flex items-center gap-1">
-              <Utensils className="w-3.5 h-3.5 text-amber-400" /> Food Reserve
+              <Utensils className="w-3.5 h-3.5 text-amber-400" /> Caloric Runway
             </span>
-            <span className="font-mono text-amber-400">{foodReserveDays}d left</span>
+            <span className="font-mono text-amber-400">{foodReserveDays}d runway</span>
           </div>
           <div className="text-2xl font-bold font-mono text-amber-300">{totalFoodKg.toLocaleString()} kg</div>
-          <div className="text-[11px] text-stone-500 mt-1">~{dailyFoodConsumptionKg} kg / day</div>
+          <div className="text-[11px] text-stone-500 mt-1">~{dailyFoodConsumptionKg} kg / day metabolic burn</div>
         </div>
 
         {/* Fresh Water Reserve */}
         <div className="bg-stone-900 border border-stone-800 p-3.5 rounded-xl">
           <div className="flex items-center justify-between text-xs text-stone-400 mb-1">
             <span className="flex items-center gap-1">
-              <Droplets className="w-3.5 h-3.5 text-cyan-400" /> Water Supply
+              <Droplets className="w-3.5 h-3.5 text-cyan-400" /> Hydration Reserve
             </span>
-            <span className="font-mono text-cyan-400">{waterReserveDays}d left</span>
+            <span className="font-mono text-cyan-400">{waterReserveDays}d runway</span>
           </div>
           <div className="text-2xl font-bold font-mono text-cyan-300">
             {state.resources.fresh_water.quantity.toLocaleString()} L
           </div>
-          <div className="text-[11px] text-stone-500 mt-1">{state.resources.fresh_water.quality}% purity</div>
+          <div className="text-[11px] text-stone-500 mt-1">{state.resources.fresh_water.quality}% purity rating</div>
         </div>
 
         {/* Firewood & Fuel */}
         <div className="bg-stone-900 border border-stone-800 p-3.5 rounded-xl">
           <div className="flex items-center justify-between text-xs text-stone-400 mb-1">
             <span className="flex items-center gap-1">
-              <Flame className="w-3.5 h-3.5 text-orange-400" /> Fuel Stacks
+              <Flame className="w-3.5 h-3.5 text-orange-400" /> Thermal Fuel
             </span>
-            <span className="font-mono text-orange-400">Campfire</span>
+            <span className="font-mono text-orange-400">Stockpile</span>
           </div>
           <div className="text-2xl font-bold font-mono text-orange-300">
             {state.resources.fuel.quantity.toLocaleString()}
           </div>
-          <div className="text-[11px] text-stone-500 mt-1">Winter demand 4x higher</div>
+          <div className="text-[11px] text-stone-500 mt-1">Winter metabolic draw 4x</div>
         </div>
 
         {/* Clan Health */}
         <div className="bg-stone-900 border border-stone-800 p-3.5 rounded-xl">
           <div className="flex items-center justify-between text-xs text-stone-400 mb-1">
             <span className="flex items-center gap-1">
-              <Heart className="w-3.5 h-3.5 text-red-400" /> Clan Health
+              <Heart className="w-3.5 h-3.5 text-red-400" /> Cohort Vitality
             </span>
             <span className="font-mono text-stone-400">{avgHealth}%</span>
           </div>
           <div className="text-2xl font-bold font-mono text-emerald-400">{avgHealth}%</div>
           <div className="text-[11px] text-stone-500 mt-1">
-            {sickCount > 0 ? `${sickCount} sick members` : 'No active epidemics'}
+            {sickCount > 0 ? `${sickCount} infected/injured agents` : 'No active pathogen contagion'}
           </div>
         </div>
 
@@ -196,15 +196,15 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         <div className="bg-stone-900 border border-stone-800 p-3.5 rounded-xl">
           <div className="flex items-center justify-between text-xs text-stone-400 mb-1">
             <span className="flex items-center gap-1">
-              <Shield className="w-3.5 h-3.5 text-blue-400" /> Shelters
+              <Shield className="w-3.5 h-3.5 text-blue-400" /> Habitat Capacity
             </span>
             <span className="font-mono text-stone-400">Cap: {shelterCapacity}</span>
           </div>
           <div className="text-2xl font-bold font-mono text-stone-100">
-            {state.infrastructure.leafHuts + state.infrastructure.thatchedCabins} huts
+            {state.infrastructure.leafHuts + state.infrastructure.thatchedCabins} units
           </div>
           <div className="text-[11px] text-stone-500 mt-1">
-            {unsheltered > 0 ? `${unsheltered} unsheltered` : 'All clan members housed'}
+            {unsheltered > 0 ? `${unsheltered} unsheltered agents` : '100% population housed'}
           </div>
         </div>
       </div>
@@ -213,11 +213,10 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
       <div className="bg-stone-900 border border-stone-800 rounded-xl p-5 shadow-sm">
         <h3 className="text-sm font-bold text-stone-100 flex items-center gap-2 mb-3">
           <Sliders className="w-4 h-4 text-amber-400" />
-          Tribal Council Decisions & Policies (Section 23)
+          Societal Survival Policies & Model Parameters (Section 23)
         </h3>
         <p className="text-xs text-stone-400 mb-4">
-          Leaders respond to resource shortages through rationing, conservation, and defensive protocols.
-          Adjust clan survival policies based on current environmental pressures:
+          Model parameters governing metabolic consumption quotas, conservation mandates, and thermal mitigation:
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
@@ -300,17 +299,17 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           <div>
             <h3 className="text-sm font-bold text-stone-100 flex items-center gap-2">
               <Users className="w-4 h-4 text-amber-400" />
-              Clan Individuals Snapshot (100 Humans)
+              Micro-Agent Cohort Sample (100 Agents)
             </h3>
             <p className="text-xs text-stone-400 mt-0.5">
-              Click on any human to inspect all 13 physical needs, skills, and lineage.
+              Select any agent node to inspect the 13 physiological and psychological telemetry variables.
             </p>
           </div>
           <button
             onClick={() => onNavigateTab('roster')}
             className="text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1"
           >
-            Full Roster & Search →
+            Examine Complete Demographic Census →
           </button>
         </div>
 

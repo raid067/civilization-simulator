@@ -43,7 +43,7 @@ export default function App() {
       console.error('Failed to parse saved state:', e);
     }
     
-    // Generate new seed for new game
+    // Generate new seed for new simulation run
     const seed = Math.floor(Math.random() * 1000000);
     localStorage.setItem(SEED_KEY, seed.toString());
     initializeRNG(seed);
@@ -146,7 +146,7 @@ export default function App() {
         }
         
         if (reportGenerated) {
-          setAnnualNotification(`Year ${reportGenerated.year} complete! Section 30 Report compiled.`);
+          setAnnualNotification(`Solar cycle ${reportGenerated.year} complete! Forensic Annual Report compiled.`);
         }
         return nextState;
       });
@@ -170,7 +170,7 @@ export default function App() {
       }
       
       if (reportGenerated) {
-        setAnnualNotification(`Year ${reportGenerated.year} complete! Section 30 Report compiled.`);
+        setAnnualNotification(`Solar cycle ${reportGenerated.year} complete! Forensic Annual Report compiled.`);
       }
       return nextState;
     });
@@ -190,14 +190,14 @@ export default function App() {
         }
       }
       
-      setAnnualNotification(`Year ${report.year} concluded with Threat Level: ${report.threatLevel}`);
+      setAnnualNotification(`Solar cycle ${report.year} concluded with Environmental Threat Level: ${report.threatLevel}`);
       return nextState;
     });
   };
 
   // Handler to reset simulation
   const handleReset = () => {
-    if (window.confirm('Reset civilization to Year 0 with 100 new primitive humans? All current history will be cleared.')) {
+    if (window.confirm('Re-initialize simulation cohort to Year 0 with 100 autonomous humans? All empirical observations will be reset.')) {
       setIsPlaying(false);
       const fresh = createInitialCivilization();
       setCivState(fresh);
@@ -329,16 +329,16 @@ export default function App() {
         onOpenLatestReport={() => setActiveTab('reports')}
       />
 
-      {/* Extinction Alert Banner if all 100 perished */}
+      {/* Extinction Alert Banner if cohort collapsed */}
       {isExtinct && (
         <div className="bg-red-950/80 border-b border-red-800 px-4 py-3 text-center text-red-200 text-sm animate-pulse flex items-center justify-center gap-3">
-          <span className="font-bold">☠️ CIVILIZATION EXTINCTION:</span>
-          <span>All clan members have perished due to unmet physical survival needs. The civilization has collapsed.</span>
+          <span className="font-bold">☠️ DEMOGRAPHIC EXTINCTION EVENT:</span>
+          <span>All 100 cohort members have perished from physiological or environmental collapse. Simulation run concluded.</span>
           <button
             onClick={() => setShowExtinctionModal(true)}
             className="underline font-bold text-red-300 hover:text-white"
           >
-            View Postmortem
+            Examine Forensic Mortality Etiology
           </button>
         </div>
       )}
@@ -378,7 +378,7 @@ export default function App() {
             }`}
           >
             <LayoutDashboard className="w-3.5 h-3.5" />
-            Overview & Vitals
+            Telemetry & Vitals
           </button>
 
           <button
@@ -394,7 +394,7 @@ export default function App() {
             }`}
           >
             <Users className="w-3.5 h-3.5" />
-            Clan Census ({livingCount})
+            Demographic Census ({livingCount})
           </button>
 
           <button
@@ -410,7 +410,7 @@ export default function App() {
             }`}
           >
             <Briefcase className="w-3.5 h-3.5" />
-            Labor Allocation
+            Division of Labor
           </button>
 
           <button
@@ -426,7 +426,7 @@ export default function App() {
             }`}
           >
             <Boxes className="w-3.5 h-3.5" />
-            16 Resources
+            Ecological Stockpiles
           </button>
 
           <button
@@ -442,7 +442,7 @@ export default function App() {
             }`}
           >
             <Map className="w-3.5 h-3.5" />
-            Geography & Zones
+            Spatial Biomes & Habitats
           </button>
 
           <button
@@ -458,7 +458,7 @@ export default function App() {
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            Generational Knowledge
+            Cultural Transmission & Tech
           </button>
 
           <button
@@ -474,7 +474,7 @@ export default function App() {
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            Section 30 Reports ({civState.annualReports.length})
+            Empirical Annual Reports ({civState.annualReports.length})
           </button>
         </div>
       </nav>
