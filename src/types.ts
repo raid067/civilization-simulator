@@ -1,5 +1,73 @@
 export type Season = 'Spring' | 'Summer' | 'Autumn' | 'Winter';
 
+export type EraType = 
+  | 'Paleolithic'
+  | 'Mesolithic'
+  | 'Neolithic'
+  | 'Copper Age'
+  | 'Bronze Age'
+  | 'Iron Age'
+  | 'Classical'
+  | 'Medieval'
+  | 'Renaissance'
+  | 'Early Modern'
+  | 'Industrial'
+  | 'Modern'
+  | 'Information';
+
+export type SettlementTier = 
+  | 'Camp'
+  | 'Village'
+  | 'Large Village'
+  | 'Town'
+  | 'City'
+  | 'Capital'
+  | 'Metropolis';
+
+export type GovernmentType = 
+  | 'Tribal Council'
+  | 'Chiefdom'
+  | 'Monarchy'
+  | 'Kingdom'
+  | 'Republic'
+  | 'Empire'
+  | 'Theocracy'
+  | 'City-State';
+
+export type SocialClass = 
+  | 'Slave'
+  | 'Laborer'
+  | 'Farmer'
+  | 'Hunter'
+  | 'Craftsperson'
+  | 'Merchant'
+  | 'Soldier'
+  | 'Priest'
+  | 'Scholar'
+  | 'Noble'
+  | 'Administrator'
+  | 'Ruler';
+
+export type PersonalityTrait = 
+  | 'ambitious'
+  | 'cautious'
+  | 'aggressive'
+  | 'peaceful'
+  | 'curious'
+  | 'loyal'
+  | 'rebellious'
+  | 'generous'
+  | 'selfish'
+  | 'intelligent'
+  | 'disciplined'
+  | 'charismatic'
+  | 'traditionalist'
+  | 'innovative'
+  | 'brave'
+  | 'cowardly'
+  | 'patient'
+  | 'impulsive';
+
 export type RoleType =
   | 'forager'
   | 'hunter'
@@ -12,7 +80,31 @@ export type RoleType =
   | 'toolmaker'
   | 'scout'
   | 'idle_child'
-  | 'elder_lorekeeper';
+  | 'elder_lorekeeper'
+  | 'soldier'
+  | 'merchant'
+  | 'priest'
+  | 'scholar'
+  | 'craftsperson'
+  | 'miner'
+  | 'fisherman'
+  | 'potter'
+  | 'weaver'
+  | 'sailor'
+  | 'administrator';
+
+export interface Family {
+  id: string;
+  name: string;
+  members: string[];
+  patriarchId?: string;
+  matriarchId?: string;
+  wealth: number;
+  reputation: number;
+  socialClass: SocialClass;
+  generation: number;
+  foundedYear: number;
+}
 
 export interface Person {
   id: string;
@@ -20,19 +112,19 @@ export interface Person {
   age: number;
   gender: 'male' | 'female';
   alive: boolean;
-  health: number; // 0 - 100
-  hunger: number; // 0 - 100 (100 is starving)
-  thirst: number; // 0 - 100 (100 is severe dehydration)
-  fatigue: number; // 0 - 100
-  temperature: number; // °C (35.0 - 39.0)
-  mentalState: number; // 0 - 100 (sanity/morale)
+  health: number;
+  hunger: number;
+  thirst: number;
+  fatigue: number;
+  temperature: number;
+  mentalState: number;
   injuries: string[];
   diseases: string[];
-  nutrition: number; // 0 - 100
-  shelterQuality: number; // 0 - 100
-  clothingQuality: number; // 0 - 100
-  warmth: number; // 0 - 100
-  safety: number; // 0 - 100
+  nutrition: number;
+  shelterQuality: number;
+  clothingQuality: number;
+  warmth: number;
+  safety: number;
   role: RoleType;
   skills: {
     hunting: number;
@@ -42,15 +134,34 @@ export interface Person {
     woodcraft: number;
     healing: number;
     lore: number;
+    combat: number;
+    crafting: number;
+    trading: number;
+    leadership: number;
+    fishing: number;
+    mining: number;
   };
   relationships: {
     partnerId?: string;
     parentIds: string[];
     childrenIds: string[];
+    friendIds: string[];
+    enemyIds: string[];
   };
+  personality: PersonalityTrait[];
+  socialClass: SocialClass;
+  familyId?: string;
+  education: number;
+  wealth: number;
+  loyalty: number;
+  happiness: number;
+  birthplace?: string;
+  currentSettlementId: string;
   causeOfDeath?: string;
   deathYear?: number;
   deathSeason?: Season;
+  achievements: string[];
+  memories: string[];
 }
 
 export type ResourceId =
@@ -69,54 +180,123 @@ export type ResourceId =
   | 'ores'
   | 'fuel'
   | 'fibers'
-  | 'animals';
+  | 'animals'
+  | 'copper'
+  | 'bronze'
+  | 'iron'
+  | 'gold'
+  | 'silver'
+  | 'cloth'
+  | 'tools'
+  | 'weapons'
+  | 'pottery'
+  | 'luxury_goods';
 
 export interface ResourceState {
   id: ResourceId;
   name: string;
-  category: 'renewable' | 'non_renewable';
-  quantity: number; // current stockpile in camp
-  worldReserve: number; // available in surrounding nature
+  category: 'renewable' | 'non_renewable' | 'manufactured';
+  quantity: number;
+  worldReserve: number;
   regenerationRatePerYear: number;
-  quality: number; // 0 - 100%
+  quality: number;
   location: string;
-  accessibility: number; // 0 - 100%
-  seasonality: Record<Season, number>; // multiplier e.g. Winter food 0.3x
+  accessibility: number;
+  seasonality: Record<Season, number>;
   unit: string;
-  spoilageRatePerSeason: number; // fraction e.g. 0.15
+  spoilageRatePerSeason: number;
+  price: number; // Dynamic market price
 }
 
 export interface RegionZone {
   id: string;
   name: string;
   description: string;
-  terrainType: 'River Valley' | 'Deep Forest' | 'Mountain Ridge' | 'Plains' | 'Coastline' | 'Arid Foothills';
+  terrainType: 'River Valley' | 'Deep Forest' | 'Mountain Ridge' | 'Plains' | 'Coastline' | 'Arid Foothills' | 'Desert' | 'Tundra' | 'Swamp' | 'Hills';
   distanceKm: number;
   primaryResources: string[];
-  dangerLevel: number; // 0 - 100
-  accessibility: number; // 0 - 100
+  dangerLevel: number;
+  accessibility: number;
   explored: boolean;
+  owner?: string; // Civilization ID
+  population: number;
+  settlements: string[]; // Settlement IDs
+}
+
+export interface Building {
+  id: string;
+  type: string;
+  name: string;
+  condition: number; // 0-100
+  capacity: number;
+  occupants: string[]; // Person IDs
+  constructionYear: number;
+  maintenanceCost: number;
+  effects: Record<string, number>; // Bonuses provided
 }
 
 export interface SettlementInfrastructure {
-  leafHuts: number; // capacity 4 each
-  thatchedCabins: number; // capacity 6 each
-  granaryBins: number; // stores grain/nuts
-  waterCisterns: number; // stores L of fresh water
-  smokingRacks: number; // preserves meat/fish
-  toolWorkBench: number; // boosts crafting speed
-  perimeterFence: number; // boosts safety against beasts
+  leafHuts: number;
+  thatchedCabins: number;
+  granaryBins: number;
+  waterCisterns: number;
+  smokingRacks: number;
+  toolWorkBench: number;
+  perimeterFence: number;
+  buildings: Building[];
+}
+
+export interface Settlement {
+  id: string;
+  name: string;
+  regionId: string;
+  tier: SettlementTier;
+  population: number;
+  families: string[]; // Family IDs
+  buildings: Building[];
+  infrastructure: SettlementInfrastructure;
+  food: number;
+  water: number;
+  wealth: number;
+  health: number;
+  happiness: number;
+  loyalty: number;
+  defense: number;
+  culture: number;
+  technology: number;
+  government: GovernmentType;
+  leaderId?: string;
+  foundedYear: number;
+  specialization?: string;
+  tradeRoutes: TradeRoute[];
+}
+
+export interface TradeRoute {
+  id: string;
+  origin: string; // Settlement ID
+  destination: string; // Settlement ID or civilization ID
+  goods: ResourceId;
+  quantity: number;
+  frequency: 'daily' | 'weekly' | 'seasonal' | 'yearly';
+  active: boolean;
+  risk: number; // 0-100
+  profit: number;
 }
 
 export interface GenerationalKnowledgeTech {
   id: string;
   name: string;
-  era: 'Paleolithic' | 'Mesolithic' | 'Neolithic' | 'Copper Age';
+  era: EraType;
+  category: 'agriculture' | 'construction' | 'military' | 'medicine' | 'science' | 'industry' | 'culture' | 'navigation';
   description: string;
   costPoints: number;
   discovered: boolean;
-  activeKeepersCount: number; // How many living members carry this lore!
+  researched: boolean;
+  mastered: boolean;
+  activeKeepersCount: number;
+  prerequisites: string[]; // Tech IDs required
   benefits: string;
+  effects: Record<string, number>;
 }
 
 export interface WeatherCondition {
@@ -125,7 +305,29 @@ export interface WeatherCondition {
   isDrought: boolean;
   isBlizzard: boolean;
   isStorm: boolean;
+  precipitationMm: number;
+  windSpeed: number;
   forecastReliabilityPercent: number;
+}
+
+export interface ClimateState {
+  averageTemp: number;
+  rainfallPattern: 'normal' | 'wet' | 'dry';
+  trend: 'warming' | 'cooling' | 'stable';
+  decade: number;
+}
+
+export interface DisasterEvent {
+  id: string;
+  type: 'drought' | 'flood' | 'earthquake' | 'wildfire' | 'volcanic' | 'storm' | 'blizzard' | 'epidemic' | 'famine' | 'plague';
+  severity: 'minor' | 'moderate' | 'severe' | 'catastrophic';
+  startYear: number;
+  endYear?: number;
+  affectedRegions: string[];
+  affectedSettlements: string[];
+  casualties: number;
+  damage: number;
+  description: string;
 }
 
 export interface CrisisEvent {
@@ -137,9 +339,245 @@ export interface CrisisEvent {
   description: string;
   cascadeChain: string[];
   resolved: boolean;
+  effects: Record<string, number>;
 }
 
-export type ThreatLevel = 'Safe' | 'Concern' | 'Crisis' | 'Catastrophic';
+export interface PoliticalFaction {
+  id: string;
+  name: string;
+  ideology: string;
+  leaderId?: string;
+  members: string[]; // Person IDs
+  influence: number; // 0-100
+  goals: string[];
+  satisfaction: number; // 0-100
+}
+
+export interface Law {
+  id: string;
+  name: string;
+  description: string;
+  enactedYear: number;
+  active: boolean;
+  effects: Record<string, number>;
+  support: number; // 0-100
+}
+
+export interface Government {
+  type: GovernmentType;
+  rulerId?: string;
+  legitimacy: number; // 0-100
+  stability: number; // 0-100
+  corruption: number; // 0-100
+  administrativeCapacity: number;
+  factions: PoliticalFaction[];
+  laws: Law[];
+  taxRate: number; // Percentage
+  treasury: number;
+}
+
+export interface Culture {
+  name: string;
+  traditions: string[];
+  values: string[];
+  language: string;
+  art: string[];
+  festivals: string[];
+  identity: number; // 0-100 cohesion
+  spread: number; // Number of adherents
+}
+
+export interface Religion {
+  name: string;
+  beliefs: string[];
+  rituals: string[];
+  holySites: string[];
+  clergy: string[]; // Person IDs
+  influence: number; // 0-100
+  adherents: number;
+  tolerance: number; // 0-100
+}
+
+export interface Civilization {
+  id: string;
+  name: string;
+  seed: number;
+  year: number;
+  era: EraType;
+  population: number;
+  settlements: Settlement[];
+  regions: RegionZone[];
+  resources: Record<ResourceId, ResourceState>;
+  technologies: GenerationalKnowledgeTech[];
+  government: Government;
+  culture: Culture;
+  religion?: Religion;
+  economy: EconomyState;
+  military: MilitaryState;
+  environment: EnvironmentState;
+  climate: ClimateState;
+  disasters: DisasterEvent[];
+  crises: CrisisEvent[];
+  history: HistoricalEvent[];
+  relations: DiplomaticRelation[];
+  weather: WeatherCondition;
+  policies: PolicySet;
+  people: Person[];
+  season: Season;
+  annualBirths: number;
+  annualDeaths: number;
+  accumulatedAnnualProduction: {
+    foodKg: number;
+    waterL: number;
+    woodUnits: number;
+    stoneUnits: number;
+    fuelUnits: number;
+  };
+  accumulatedAnnualConsumption: {
+    foodKg: number;
+    waterL: number;
+    fuelUnits: number;
+  };
+  annualReports: YearlyResourceReport[];
+}
+
+export interface EconomyState {
+  currency: string;
+  moneySupply: number;
+  inflation: number; // Percentage
+  gdp: number;
+  production: number;
+  consumption: number;
+  tradeBalance: number;
+  debt: number;
+  wealthDistribution: {
+    bottom20: number;
+    middle60: number;
+    top20: number;
+  };
+}
+
+export interface MilitaryState {
+  totalTroops: number;
+  armies: Army[];
+  strength: number;
+  morale: number;
+  equipment: number;
+  wars: War[];
+}
+
+export interface Army {
+  id: string;
+  name: string;
+  size: number;
+  composition: Record<string, number>; // Unit types and counts
+  location: string; // Region or settlement ID
+  commanderId?: string;
+  morale: number;
+  supplies: number;
+  experience: number;
+}
+
+export interface War {
+  id: string;
+  aggressor: string; // Civilization ID
+  defender: string;
+  startYear: number;
+  endYear?: number;
+  cause: string;
+  battles: Battle[];
+  casualties: {
+    aggressor: number;
+    defender: number;
+  };
+  territoryChanges: string[];
+  outcome?: string;
+  treaty?: string;
+}
+
+export interface Battle {
+  id: string;
+  year: number;
+  location: string;
+  aggressorForces: number;
+  defenderForces: number;
+  aggressorCasualties: number;
+  defenderCasualties: number;
+  winner: 'aggressor' | 'defender' | 'draw';
+  description: string;
+}
+
+export interface EnvironmentState {
+  forestCoverage: number; // Percentage
+  soilQuality: number; // 0-100
+  waterAvailability: number; // 0-100
+  wildlife: number; // 0-100
+  pollution: number; // 0-100
+  biodiversity: number; // 0-100
+  erosion: number; // 0-100
+}
+
+export interface DiplomaticRelation {
+  civilizationId: string;
+  civilizationName: string;
+  relationship: 'hostile' | 'tense' | 'neutral' | 'friendly' | 'allied' | 'vassal';
+  tradeAgreement: boolean;
+  alliance: boolean;
+  nonAggressionPact: boolean;
+  war: boolean;
+  trust: number; // 0-100
+  history: string[];
+}
+
+export interface HistoricalEvent {
+  id: string;
+  year: number;
+  season?: Season;
+  type: HistoricalEventType;
+  title: string;
+  description: string;
+  importance: number; // 1-10
+  location?: string;
+  people?: string[];
+  civilizations?: string[];
+  causes?: string[];
+  consequences?: string[];
+}
+
+export type HistoricalEventType =
+  | 'birth'
+  | 'death'
+  | 'discovery'
+  | 'invention'
+  | 'war_start'
+  | 'war_end'
+  | 'battle'
+  | 'treaty'
+  | 'settlement_founded'
+  | 'settlement_growth'
+  | 'disaster'
+  | 'leader_change'
+  | 'technology'
+  | 'migration'
+  | 'trade_route'
+  | 'cultural'
+  | 'religious'
+  | 'economic'
+  | 'political'
+  | 'environmental';
+
+export interface PolicySet {
+  foodRationing: 'Frugal' | 'Normal' | 'Generous';
+  waterConservation: boolean;
+  firewoodPriority: 'Minimum' | 'Balanced' | 'Maximum Warmth';
+  quarantineSick: boolean;
+  explorationAggression: 'Cautious' | 'Moderate' | 'Daring';
+  teachingFocus: 'Survival' | 'Crafting' | 'Healing' | 'Exploration';
+  taxation: 'Low' | 'Medium' | 'High';
+  militaryService: 'Volunteer' | 'Conscription' | 'Professional';
+  tradePolicy: 'Isolationist' | 'Balanced' | 'Expansionist';
+  immigration: 'Closed' | 'Restricted' | 'Open';
+}
 
 export interface YearlyResourceReport {
   year: number;
@@ -150,6 +588,7 @@ export interface YearlyResourceReport {
     migration: number;
     lifeExpectancy: number;
     infantMortality: number;
+    ageDistribution: Record<string, number>;
   };
   food: {
     productionKg: number;
@@ -192,6 +631,7 @@ export interface YearlyResourceReport {
     barterValueIndex: number;
     wealthScore: number;
     employmentPercent: number;
+    inflation: number;
   };
   environment: {
     forestCoveragePercent: number;
@@ -199,47 +639,53 @@ export interface YearlyResourceReport {
     wildlifeAbundancePercent: number;
     pollutionLevelPercent: number;
   };
+  politics: {
+    stability: number;
+    legitimacy: number;
+    factionPower: Record<string, number>;
+  };
+  military: {
+    armySize: number;
+    strength: number;
+    casualties: number;
+    wars: number;
+  };
   threatLevel: ThreatLevel;
   notableHappenings: string[];
-  aiChronicle?: {
-    saga: string;
-    councilDeliberation: string;
-    strategicAdvice: string[];
-  };
+  era: EraType;
 }
 
-export interface CivilizationState {
-  year: number;
-  season: Season;
-  dayOfYear: number;
-  people: Person[];
-  resources: Record<ResourceId, ResourceState>;
-  regions: RegionZone[];
-  infrastructure: SettlementInfrastructure;
-  technologies: GenerationalKnowledgeTech[];
-  weather: WeatherCondition;
-  crises: CrisisEvent[];
-  annualReports: YearlyResourceReport[];
-  accumulatedAnnualProduction: {
-    foodKg: number;
-    waterL: number;
-    woodUnits: number;
-    stoneUnits: number;
-    fuelUnits: number;
-  };
-  accumulatedAnnualConsumption: {
-    foodKg: number;
-    waterL: number;
-    fuelUnits: number;
-  };
-  annualBirths: number;
-  annualDeaths: number;
-  policies: {
-    foodRationing: 'Frugal' | 'Normal' | 'Generous';
-    waterConservation: boolean;
-    firewoodPriority: 'Minimum' | 'Balanced' | 'Maximum Warmth';
-    quarantineSick: boolean;
-    explorationAggression: 'Cautious' | 'Moderate' | 'Daring';
-    teachingFocus: 'Survival' | 'Crafting' | 'Healing' | 'Exploration';
-  };
+export type ThreatLevel = 'Safe' | 'Concern' | 'Crisis' | 'Catastrophic';
+
+export interface SimulationConfig {
+  baseBirthRate: number;
+  baseDeathRate: number;
+  baseMigrationRate: number;
+  foodConsumptionPerPerson: number;
+  waterConsumptionPerPerson: number;
+  housingCapacityPerBuilding: Record<string, number>;
+  technologyCostMultiplier: number;
+  disasterProbability: number;
+  warProbability: number;
+  tradeProfitMargin: number;
 }
+
+export const SIMULATION_CONFIG: SimulationConfig = {
+  baseBirthRate: 0.025,
+  baseDeathRate: 0.015,
+  baseMigrationRate: 0.01,
+  foodConsumptionPerPerson: 1.8,
+  waterConsumptionPerPerson: 2.5,
+  housingCapacityPerBuilding: {
+    leafHut: 4,
+    thatchedCabin: 6,
+    stoneHouse: 8,
+    apartment: 4,
+    manor: 15,
+    palace: 50,
+  },
+  technologyCostMultiplier: 1.0,
+  disasterProbability: 0.08,
+  warProbability: 0.05,
+  tradeProfitMargin: 0.15,
+};
