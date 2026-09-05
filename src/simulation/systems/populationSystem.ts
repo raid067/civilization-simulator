@@ -2,9 +2,9 @@
  * Population System - Manages births, deaths, aging, and demographic simulation
  */
 
-import { Person, Civilization, RoleType, Season, PersonalityTrait, SocialClass } from '../types';
+import { Person, Civilization, RoleType, Season, PersonalityTrait, SocialClass } from '../../types';
 import { SeededRandom } from '../utils/Random';
-import { SIMULATION_CONFIG } from '../types';
+import { SIMULATION_CONFIG } from '../../types';
 
 const PERSONALITY_TRAITS: PersonalityTrait[] = [
   'ambitious', 'cautious', 'aggressive', 'peaceful', 'curious',
@@ -36,9 +36,8 @@ export class PopulationSystem {
    * Process aging for all living people
    */
   processAging(civ: Civilization): void {
-    for (const person of civ.settlements.flatMap(s => 
-      civ.people.filter(p => p.currentSettlementId === s.id && p.alive)
-    )) {
+    const livingPeople = civ.people.filter(p => p.alive);
+    for (const person of livingPeople) {
       // Age-related health decline after 40
       if (person.age >= 40) {
         const declineRate = (person.age - 40) * 0.3;
@@ -101,13 +100,14 @@ export class PopulationSystem {
         
         // Record historical event for important births
         if (births <= 3 || this.random.chance(0.05)) {
+          if (!civ.history) civ.history = [];
           civ.history.push({
             id: `birth-${civ.year}-${births}`,
             year: civ.year,
             season,
             type: 'birth',
             title: `New Life: ${baby.name}`,
-            description: `${baby.name} was born to ${female.name} in ${civ.settlements.find(s => s.id === baby.currentSettlementId)?.name || 'the settlement'}.`,
+            description: `${baby.name} was born to ${female.name}.`,
             importance: 2,
             people: [baby.id, female.id]
           });
@@ -295,8 +295,15 @@ export class PopulationSystem {
   /**
    * Get housing modifier for birth rate
    */
-  private getHousingModifier(civ: Civilization, settlementId: string): number {
-    const settlement = civ.settlements.find(s => s.id === settlementId);
+  private getHousingModifier(civ: Civilization, settlementId?: string): number {
+    if (civ.infrastructure) {
+      const housingCapacity = (civ.infrastructure.leafHuts || 0) * 4 + (civ.infrastructure.thatchedCabins || 0) * 8;
+      const pop = civ.people.filter(p => p.alive).length;
+      if (pop <= housingCapacity) return 1.2;
+      if (pop <= housingCapacity * 1.2) return 1.0;
+      return 0.6;
+    }
+    const settlement = civ.settlements?.find(s => s.id === settlementId);
     if (!settlement) return 1.0;
     
     const housingCapacity = settlement.infrastructure.leafHuts * 4 + 
@@ -333,7 +340,7 @@ export class PopulationSystem {
       // Prime working age - assign based on skills and needs
       if (person.age >= 10 && person.role === 'idle_child') {
         // Determine best role based on skills
-        const skillMap: Record<string, keyof Person['skills']> = {
+        const skillMap: Record<string, RoleType> = {
           hunting: 'hunter',
           foraging: 'forager',
           farming: 'farmer',

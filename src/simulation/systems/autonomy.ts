@@ -1,222 +1,160 @@
 import { SimulationContext } from '../context';
-import { JobType, ResourceType, BuildingType, TechnologyId } from '../../types';
+import { CivilizationState, RoleType, Person } from '../../types';
 
 /**
- * AUTONOMY SYSTEM
+ * AUTONOMY SYSTEM — TRIBAL SURVIVAL WISDOM
  * 
- * This system acts as the "AI Brain" of the civilization.
- * It automatically makes decisions so the player can watch the simulation run without input.
+ * Automatically balances labor and vital roles so the tribe does not
+ * blindly extinguish itself when the player watches in auto-play mode.
  * 
- * Priorities:
- * 1. Survival (Food, Water, Health)
- * 2. Shelter (Housing)
- * 3. Economic Growth (Tools, Production)
- * 4. Expansion (New Buildings, Settlements)
- * 5. Knowledge (Research)
- * 6. Diplomacy/Military
+ * Survival Hierarchy of Needs:
+ * 1. Water Critical Reserve (< 12 days supply)
+ * 2. Food Critical Reserve (< 18 days supply)
+ * 3. Winter Firewood Buffer (Sub-zero freeze prevention)
+ * 4. Healthcare & Sickness Treatment (Herbalists)
+ * 5. Generational Lorekeeper Preservation (Oral tech continuity)
+ * 6. Shelter Construction & Maintenance
  */
 
 export function runAutonomySystem(context: SimulationContext): void {
-  const { state, rng } = context;
-  const { civilization, world } = state;
+  const state: CivilizationState = context.state;
 
-  // Only run autonomy checks occasionally (e.g., every season) to save performance
-  // and prevent erratic rapid changes.
-  
-  manageLaborForce(context);
-  manageConstruction(context);
-  manageResearch(context);
-  manageGovernmentPolicies(context);
-  manageDiplomacyAndWar(context);
+  // If user has explicitly disabled autonomy, do not override manual allocations
+  if (state.policies.autonomyEnabled === false) {
+    return;
+  }
+
+  manageTribalLabor(state);
+  manageEmergencyPolicies(state);
 }
 
 /**
- * 1. LABOR ALLOCATION
- * Automatically assigns unemployed citizens to critical jobs.
+ * Automatically adjust worker assignments according to life-support runways
  */
-function manageLaborForce(context: SimulationContext): void {
-  const { state } = context;
-  const { civilization } = state;
+function manageTribalLabor(state: CivilizationState): void {
+  const living = state.people.filter((p) => p.alive);
+  const livingCount = living.length;
+  if (livingCount === 0) return;
 
-  // Calculate needs
-  const foodPerPerson = civilization.resources.food / Math.max(1, civilization.population.length);
-  const isHungry = foodPerPerson < 10; // Critical threshold
-  
-  const housingCapacity = civilization.settlements.reduce((acc, s) => acc + s.housingCapacity, 0);
-  const isHomeless = civilization.population.length > housingCapacity;
+  const ableAdults = living.filter((p) => p.age >= 10 && p.health > 20);
+  if (ableAdults.length === 0) return;
 
-  // Iterate through unemployed people
-  const unemployed = civilization.population.filter(p => !p.occupation && p.age >= 14 && p.health > 0.5);
+  // Calculate current survival reserves
+  const totalFoodKg =
+    state.resources.fruit.quantity +
+    state.resources.meat.quantity +
+    state.resources.fish.quantity +
+    state.resources.grains.quantity +
+    state.resources.plants.quantity;
 
-  for (const person of unemployed) {
-    let preferredJob: JobType | null = null;
+  const dailyFoodConsumption = livingCount * (state.policies.foodRationing === 'Frugal' ? 1.2 : 1.8);
+  const foodRunwayDays = dailyFoodConsumption > 0 ? totalFoodKg / dailyFoodConsumption : 999;
 
-    // Priority 1: Farming if hungry
-    if (isHungry) {
-      preferredJob = 'Farmer';
-    } 
-    // Priority 2: Building if homeless
-    else if (isHomeless) {
-      preferredJob = 'Builder';
-    }
-    // Priority 3: Basic resource gathering if low stock
-    else if (civilization.resources.wood < 50) {
-      preferredJob = 'Logger';
-    }
-    else if (civilization.resources.stone < 50) {
-      preferredJob = 'Miner';
-    }
-    // Priority 4: Fill other gaps
-    else {
-      // Simple round-robin or random fill for other jobs
-      const availableJobs: JobType[] = ['Craftsperson', 'Merchant', 'Soldier', 'Scholar'];
-      preferredJob = availableJobs[Math.floor(context.rng.next() * availableJobs.length)];
-    }
+  const dailyWaterConsumption = livingCount * 2.5 * (state.policies.waterConservation ? 0.75 : 1.0);
+  const waterRunwayDays = dailyWaterConsumption > 0 ? state.resources.fresh_water.quantity / dailyWaterConsumption : 999;
 
-    if (preferredJob) {
-      // Assign job directly in state
-      person.occupation = preferredJob;
-      // Log event? Maybe too noisy.
-    }
-  }
-}
+  const fuelReserve = state.resources.fuel.quantity;
+  const isWinterApproaching = state.season === 'Autumn' || state.season === 'Winter';
+  const fuelShortage = isWinterApproaching && fuelReserve < livingCount * 25;
 
-/**
- * 2. CONSTRUCTION
- * Automatically queues/builds necessary buildings if resources allow.
- */
-function manageConstruction(context: SimulationContext): void {
-  const { state } = context;
-  const { civilization } = state;
-  
-  // Find primary settlement
-  const capital = civilization.settlements[0];
-  if (!capital) return;
+  const sickCount = living.filter((p) => p.diseases.length > 0 || p.health < 40).length;
 
-  const pop = civilization.population.length;
-  const housingCap = capital.housingCapacity;
-  const foodStock = civilization.resources.food;
-  const woodStock = civilization.resources.wood;
-  const stoneStock = civilization.resources.stone;
-
-  // Rule: Build houses if population > capacity
-  if (pop > housingCap && woodStock >= 20) {
-    // Check if already building a house
-    const buildingHouse = capital.activeProjects.some(p => p.type === 'Building' && p.buildingType === 'House');
-    if (!buildingHouse) {
-      capital.activeProjects.push({
-        id: `proj_${Date.now()}_${Math.floor(context.rng.next() * 1000)}`,
-        type: 'Building',
-        buildingType: 'House',
-        progress: 0,
-        cost: { wood: 20, stone: 0 },
-        assignedWorkers: 0
-      });
-      // Deduct resources immediately or on completion? Let's do on completion for simplicity, 
-      // but reserve them logically. For now, just queue.
+  // 1. Ensure at least one Elder Lorekeeper to prevent total loss of oral knowledge
+  const currentKeepers = living.filter((p) => p.role === 'elder_lorekeeper');
+  if (currentKeepers.length === 0) {
+    const elderCandidate = ableAdults
+      .filter((p) => p.age >= 45)
+      .sort((a, b) => b.skills.lore - a.skills.lore)[0];
+    if (elderCandidate) {
+      elderCandidate.role = 'elder_lorekeeper';
     }
   }
 
-  // Rule: Build Farm if food is low and we have workers
-  const foodPerPerson = foodStock / Math.max(1, pop);
-  if (foodPerPerson < 20 && woodStock >= 30) {
-    const buildingFarm = capital.activeProjects.some(p => p.type === 'Building' && p.buildingType === 'Farm');
-    if (!buildingFarm) {
-      capital.activeProjects.push({
-        id: `proj_${Date.now()}_${Math.floor(context.rng.next() * 1000)}`,
-        type: 'Building',
-        buildingType: 'Farm',
-        progress: 0,
-        cost: { wood: 30, stone: 5 },
-        assignedWorkers: 0
-      });
+  // 2. Emergency Water Priority (Dehydration kills in days)
+  if (waterRunwayDays < 15) {
+    const targetWaterFetchers = Math.max(3, Math.ceil(ableAdults.length * 0.28));
+    rebalanceRole(ableAdults, 'water_fetcher', targetWaterFetchers);
+  }
+
+  // 3. Emergency Food Priority (Famine prevention)
+  if (foodRunwayDays < 20) {
+    const targetFoodGatherers = Math.max(4, Math.ceil(ableAdults.length * 0.45));
+    // Split between foraging and hunting (and farming if Neolithic tech is unlocked)
+    const hasAgri = state.technologies.some((t) => t.id === 'tech-agri' && t.discovered);
+    const foragerCount = hasAgri && state.season === 'Autumn' ? Math.floor(targetFoodGatherers * 0.4) : Math.floor(targetFoodGatherers * 0.65);
+    const hunterCount = targetFoodGatherers - foragerCount;
+
+    rebalanceRole(ableAdults, 'forager', foragerCount);
+    rebalanceRole(ableAdults, 'hunter', hunterCount);
+  }
+
+  // 4. Winter Fuel Buffer (Hypothermia prevention)
+  if (fuelShortage) {
+    const targetCutters = Math.max(2, Math.ceil(ableAdults.length * 0.20));
+    rebalanceRole(ableAdults, 'lumberjack', targetCutters);
+  }
+
+  // 5. Medical Care for Outbreaks
+  if (sickCount >= 3) {
+    const currentHealers = living.filter((p) => p.role === 'herbalist').length;
+    if (currentHealers === 0) {
+      const healerCandidate = ableAdults.find((p) => p.role !== 'elder_lorekeeper' && p.role !== 'water_fetcher');
+      if (healerCandidate) healerCandidate.role = 'herbalist';
     }
   }
 }
 
 /**
- * 3. RESEARCH
- * Automatically picks the next technology.
+ * Rebalances a role to have approximately targetCount adults
  */
-function manageResearch(context: SimulationContext): void {
-  const { state } = context;
-  const { civilization } = state;
+function rebalanceRole(adults: Person[], targetRole: RoleType, targetCount: number): void {
+  const currentInRole = adults.filter((p) => p.role === targetRole);
+  const diff = targetCount - currentInRole.length;
 
-  // If already researching, continue
-  if (civilization.currentResearch) return;
-
-  // Find available techs
-  const knownTechs = new Set(civilization.technologies);
-  
-  // Simple priority list for demo purposes
-  const techPriority: TechnologyId[] = [
-    'Agriculture', 'Pottery', 'Mining', 'Bronze_Working', 'Writing', 'Iron_Working'
-  ];
-
-  for (const techId of techPriority) {
-    if (!knownTechs.has(techId)) {
-      // Check prerequisites (simplified)
-      // In a full implementation, check the tech tree graph
-      civilization.currentResearch = techId;
-      civilization.researchProgress = 0;
-      break;
+  if (diff > 0) {
+    // Need more in this role; take from less critical roles (e.g. toolmaker, stonecutter, scout)
+    const candidates = adults.filter(
+      (p) => p.role !== targetRole && p.role !== 'elder_lorekeeper' && p.role !== 'water_fetcher'
+    );
+    for (let i = 0; i < Math.min(diff, candidates.length); i++) {
+      candidates[i].role = targetRole;
     }
   }
 }
 
 /**
- * 4. GOVERNMENT POLICIES
- * Adjusts taxes and laws based on stability.
+ * Adjust survival policies automatically under crisis
  */
-function manageGovernmentPolicies(context: SimulationContext): void {
-  const { state } = context;
-  const { government } = state.civilization;
+function manageEmergencyPolicies(state: CivilizationState): void {
+  const livingCount = state.people.filter((p) => p.alive).length;
+  if (livingCount === 0) return;
 
-  // If stability is low, lower taxes to appease population
-  if (government.stability < 30 && government.taxRate > 0.1) {
-    government.taxRate -= 0.01;
-  } 
-  // If treasury is huge and stability high, raise taxes slightly for surplus
-  else if (government.treasury > 1000 && government.stability > 70 && government.taxRate < 0.3) {
-    government.taxRate += 0.01;
+  const totalFoodKg =
+    state.resources.fruit.quantity +
+    state.resources.meat.quantity +
+    state.resources.fish.quantity +
+    state.resources.grains.quantity +
+    state.resources.plants.quantity;
+
+  const foodPerPerson = totalFoodKg / Math.max(1, livingCount);
+
+  // If severe food shortage, enact Frugal rationing
+  if (foodPerPerson < 40 && state.policies.foodRationing !== 'Frugal') {
+    state.policies.foodRationing = 'Frugal';
+  } else if (foodPerPerson > 150 && state.policies.foodRationing === 'Frugal') {
+    state.policies.foodRationing = 'Normal';
   }
 
-  // Cap tax rates
-  government.taxRate = Math.max(0.05, Math.min(0.5, government.taxRate));
-}
+  // If drought or water deficit, conserve water
+  if (state.weather.isDrought || state.resources.fresh_water.quantity < livingCount * 120) {
+    state.policies.waterConservation = true;
+  } else if (state.resources.fresh_water.quantity > livingCount * 400) {
+    state.policies.waterConservation = false;
+  }
 
-/**
- * 5. DIPLOMACY & WAR
- * Simple AI for interacting with other civilizations.
- */
-function manageDiplomacyAndWar(context: SimulationContext): void {
-  const { state, rng } = context;
-  const { civilization, otherCivilizations } = state;
-
-  if (!otherCivilizations || otherCivilizations.length === 0) return;
-
-  for (const other of otherCivilizations) {
-    const relation = civilization.relations[other.id] || 50; // Default neutral
-
-    // If relation is very low and we are strong, maybe declare war?
-    // If relation is high, maybe propose alliance?
-    
-    // Simple random drift in relations to simulate organic interaction
-    const drift = (rng.next() - 0.5) * 2; // -1 to 1
-    civilization.relations[other.id] = Math.max(0, Math.min(100, relation + drift));
-
-    // War Logic
-    if (relation < 20 && !civilization.atWar.includes(other.id)) {
-      // Chance to declare war if desperate or aggressive
-      if (rng.chance(0.05)) { // 5% chance per season when hostile
-        civilization.atWar.push(other.id);
-        // Add historical event handled by history system
-      }
-    } else if (relation > 60 && civilization.atWar.includes(other.id)) {
-      // Chance to make peace
-      if (rng.chance(0.1)) {
-        civilization.atWar = civilization.atWar.filter(id => id !== other.id);
-      }
-    }
+  // If winter blizzard, prioritize maximum warmth
+  if (state.weather.isBlizzard || (state.season === 'Winter' && state.weather.currentTempC < -2)) {
+    state.policies.firewoodPriority = 'Maximum Warmth';
   }
 }
+

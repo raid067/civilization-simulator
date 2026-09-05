@@ -21,6 +21,7 @@ import { GeographyMap } from './components/GeographyMap';
 import { TechTree } from './components/TechTree';
 import { YearlyReportView } from './components/YearlyReportView';
 import { PersonModal } from './components/PersonModal';
+import { ExtinctionModal } from './components/ExtinctionModal';
 import { runAutonomySystem } from './simulation/systems/autonomy';
 import { createSimulationContext, DEFAULT_CONFIG } from './simulation/context';
 
@@ -55,15 +56,75 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playSpeed, setPlaySpeed] = useState<number>(1);
   const [annualNotification, setAnnualNotification] = useState<string | null>(null);
+  const [showExtinctionModal, setShowExtinctionModal] = useState<boolean>(true);
 
-  // Save state to localStorage
+  // Debounced save state to localStorage to eliminate jank during auto-play
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(civState));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
+    saveTimeoutRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(civState));
+      } catch (e) {
+        console.warn('LocalStorage save failed:', e);
+      }
+    }, 600);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [civState]);
+
+  // Guarantee state is saved when closing/reloading the browser
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(civState));
+      } catch (e) {
+        console.warn('Flush before unload failed:', e);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [civState]);
+
+  // Keyboard navigation and simulation shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore key events when focusing inputs or textareas
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setIsPlaying((prev) => !prev);
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        handleStepSeason();
+      } else if (e.key === 'y' || e.key === 'Y') {
+        e.preventDefault();
+        handleStepYear();
+      } else if (e.key === '1') {
+        setPlaySpeed(1);
+      } else if (e.key === '2') {
+        setPlaySpeed(2);
+      } else if (e.key === '3' || e.key === '5') {
+        setPlaySpeed(5);
+      } else if (e.key === 'Escape') {
+        setInspectingPersonId(null);
+        setShowExtinctionModal(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Simulation loop when Auto-Play is active
   useEffect(() => {
@@ -74,12 +135,14 @@ export default function App() {
       setCivState((prev) => {
         const { state: nextState, reportGenerated } = simulateSeason(prev);
         
-        // Run autonomy system to make automatic decisions
-        try {
-          const context = createSimulationContext(nextState, parseInt(localStorage.getItem(SEED_KEY) || '12345', 10), DEFAULT_CONFIG);
-          runAutonomySystem(context);
-        } catch (e) {
-          console.warn('Autonomy system error:', e);
+        // Run autonomy system if enabled
+        if (nextState.policies?.autonomyEnabled !== false) {
+          try {
+            const context = createSimulationContext(nextState, parseInt(localStorage.getItem(SEED_KEY) || '12345', 10), DEFAULT_CONFIG);
+            runAutonomySystem(context);
+          } catch (e) {
+            console.warn('Autonomy system error:', e);
+          }
         }
         
         if (reportGenerated) {
@@ -97,12 +160,13 @@ export default function App() {
     setCivState((prev) => {
       const { state: nextState, reportGenerated } = simulateSeason(prev);
       
-      // Run autonomy system
-      try {
-        const context = createSimulationContext(nextState, parseInt(localStorage.getItem(SEED_KEY) || '12345', 10), DEFAULT_CONFIG);
-        runAutonomySystem(context);
-      } catch (e) {
-        console.warn('Autonomy system error:', e);
+      if (nextState.policies?.autonomyEnabled !== false) {
+        try {
+          const context = createSimulationContext(nextState, parseInt(localStorage.getItem(SEED_KEY) || '12345', 10), DEFAULT_CONFIG);
+          runAutonomySystem(context);
+        } catch (e) {
+          console.warn('Autonomy system error:', e);
+        }
       }
       
       if (reportGenerated) {
@@ -117,12 +181,13 @@ export default function App() {
     setCivState((prev) => {
       const { state: nextState, report } = simulateYear(prev);
       
-      // Run autonomy system
-      try {
-        const context = createSimulationContext(nextState, parseInt(localStorage.getItem(SEED_KEY) || '12345', 10), DEFAULT_CONFIG);
-        runAutonomySystem(context);
-      } catch (e) {
-        console.warn('Autonomy system error:', e);
+      if (nextState.policies?.autonomyEnabled !== false) {
+        try {
+          const context = createSimulationContext(nextState, parseInt(localStorage.getItem(SEED_KEY) || '12345', 10), DEFAULT_CONFIG);
+          runAutonomySystem(context);
+        } catch (e) {
+          console.warn('Autonomy system error:', e);
+        }
       }
       
       setAnnualNotification(`Year ${report.year} concluded with Threat Level: ${report.threatLevel}`);
@@ -137,6 +202,7 @@ export default function App() {
       const fresh = createInitialCivilization();
       setCivState(fresh);
       setAnnualNotification(null);
+      setShowExtinctionModal(true);
     }
   };
 
@@ -178,6 +244,69 @@ export default function App() {
     });
   };
 
+  // Quick labor preset applicator
+  const handleApplyPreset = (preset: 'balanced' | 'food' | 'winter' | 'lore') => {
+    setCivState((prev) => {
+      const livingPeople = [...prev.people];
+      const eligibleAdults = livingPeople.filter((p) => p.alive && p.age >= 10);
+      if (eligibleAdults.length === 0) return prev;
+
+      let distribution: { role: RoleType; weight: number }[] = [];
+      if (preset === 'balanced') {
+        distribution = [
+          { role: 'forager', weight: 0.30 },
+          { role: 'water_fetcher', weight: 0.20 },
+          { role: 'hunter', weight: 0.15 },
+          { role: 'lumberjack', weight: 0.15 },
+          { role: 'farmer', weight: 0.05 },
+          { role: 'builder', weight: 0.05 },
+          { role: 'herbalist', weight: 0.05 },
+          { role: 'elder_lorekeeper', weight: 0.05 },
+        ];
+      } else if (preset === 'food') {
+        distribution = [
+          { role: 'forager', weight: 0.50 },
+          { role: 'hunter', weight: 0.30 },
+          { role: 'water_fetcher', weight: 0.20 },
+        ];
+      } else if (preset === 'winter') {
+        distribution = [
+          { role: 'lumberjack', weight: 0.35 },
+          { role: 'forager', weight: 0.25 },
+          { role: 'hunter', weight: 0.20 },
+          { role: 'water_fetcher', weight: 0.15 },
+          { role: 'herbalist', weight: 0.05 },
+        ];
+      } else if (preset === 'lore') {
+        distribution = [
+          { role: 'elder_lorekeeper', weight: 0.25 },
+          { role: 'scout', weight: 0.20 },
+          { role: 'forager', weight: 0.25 },
+          { role: 'water_fetcher', weight: 0.20 },
+          { role: 'hunter', weight: 0.10 },
+        ];
+      }
+
+      let currentIndex = 0;
+      distribution.forEach((item, idx) => {
+        const isLast = idx === distribution.length - 1;
+        const count = isLast
+          ? eligibleAdults.length - currentIndex
+          : Math.floor(eligibleAdults.length * item.weight);
+
+        for (let i = 0; i < count && currentIndex < eligibleAdults.length; i++) {
+          eligibleAdults[currentIndex].role = item.role;
+          currentIndex++;
+        }
+      });
+
+      return {
+        ...prev,
+        people: livingPeople,
+      };
+    });
+  };
+
   const inspectedPerson = inspectingPersonId
     ? civState.people.find((p) => p.id === inspectingPersonId) || null
     : null;
@@ -202,9 +331,15 @@ export default function App() {
 
       {/* Extinction Alert Banner if all 100 perished */}
       {isExtinct && (
-        <div className="bg-red-950/80 border-b border-red-800 px-4 py-3 text-center text-red-200 text-sm animate-pulse">
-          <span className="font-bold mr-2">☠️ CIVILIZATION EXTINCTION:</span>
-          All clan members have perished due to unmet physical survival needs. The civilization has collapsed. Click Reset to begin anew.
+        <div className="bg-red-950/80 border-b border-red-800 px-4 py-3 text-center text-red-200 text-sm animate-pulse flex items-center justify-center gap-3">
+          <span className="font-bold">☠️ CIVILIZATION EXTINCTION:</span>
+          <span>All clan members have perished due to unmet physical survival needs. The civilization has collapsed.</span>
+          <button
+            onClick={() => setShowExtinctionModal(true)}
+            className="underline font-bold text-red-300 hover:text-white"
+          >
+            View Postmortem
+          </button>
         </div>
       )}
 
@@ -228,10 +363,13 @@ export default function App() {
       )}
 
       {/* Primary Navigation Tabs */}
-      <nav className="bg-stone-900 border-b border-stone-800">
+      <nav role="tablist" aria-label="Civilization Dashboard Tabs" className="bg-stone-900 border-b border-stone-800">
         <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 overflow-x-auto py-1">
           <button
             id="tab-overview"
+            role="tab"
+            aria-selected={activeTab === 'overview'}
+            aria-controls="panel-overview"
             onClick={() => setActiveTab('overview')}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
               activeTab === 'overview'
@@ -245,6 +383,9 @@ export default function App() {
 
           <button
             id="tab-roster"
+            role="tab"
+            aria-selected={activeTab === 'roster'}
+            aria-controls="panel-roster"
             onClick={() => setActiveTab('roster')}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
               activeTab === 'roster'
@@ -258,6 +399,9 @@ export default function App() {
 
           <button
             id="tab-labor"
+            role="tab"
+            aria-selected={activeTab === 'labor'}
+            aria-controls="panel-labor"
             onClick={() => setActiveTab('labor')}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
               activeTab === 'labor'
@@ -271,6 +415,9 @@ export default function App() {
 
           <button
             id="tab-resources"
+            role="tab"
+            aria-selected={activeTab === 'resources'}
+            aria-controls="panel-resources"
             onClick={() => setActiveTab('resources')}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
               activeTab === 'resources'
@@ -284,6 +431,9 @@ export default function App() {
 
           <button
             id="tab-geography"
+            role="tab"
+            aria-selected={activeTab === 'geography'}
+            aria-controls="panel-geography"
             onClick={() => setActiveTab('geography')}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
               activeTab === 'geography'
@@ -297,6 +447,9 @@ export default function App() {
 
           <button
             id="tab-tech-lore"
+            role="tab"
+            aria-selected={activeTab === 'tech_lore'}
+            aria-controls="panel-tech_lore"
             onClick={() => setActiveTab('tech_lore')}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
               activeTab === 'tech_lore'
@@ -310,6 +463,9 @@ export default function App() {
 
           <button
             id="tab-reports"
+            role="tab"
+            aria-selected={activeTab === 'reports'}
+            aria-controls="panel-reports"
             onClick={() => setActiveTab('reports')}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
               activeTab === 'reports'
@@ -324,7 +480,12 @@ export default function App() {
       </nav>
 
       {/* Main Viewport Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+      <main
+        role="tabpanel"
+        id={`panel-${activeTab}`}
+        aria-labelledby={`tab-${activeTab}`}
+        className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6"
+      >
         {activeTab === 'overview' && (
           <OverviewDashboard
             state={civState}
@@ -346,6 +507,8 @@ export default function App() {
             state={civState}
             onUpdateRoleDistribution={handleUpdateRoleDistribution}
             onInspectPerson={(id) => setInspectingPersonId(id)}
+            onToggleAutonomy={(enabled) => handleUpdatePolicy('autonomyEnabled', enabled)}
+            onApplyPreset={handleApplyPreset}
           />
         )}
 
@@ -368,6 +531,15 @@ export default function App() {
         person={inspectedPerson}
         onClose={() => setInspectingPersonId(null)}
       />
+
+      {/* Extinction Postmortem Modal */}
+      {isExtinct && showExtinctionModal && (
+        <ExtinctionModal
+          state={civState}
+          onReset={handleReset}
+          onClose={() => setShowExtinctionModal(false)}
+        />
+      )}
     </div>
   );
 }

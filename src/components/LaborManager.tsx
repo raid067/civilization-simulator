@@ -17,6 +17,8 @@ interface LaborManagerProps {
   state: CivilizationState;
   onUpdateRoleDistribution: (targetRole: RoleType, delta: number) => void;
   onInspectPerson: (personId: string) => void;
+  onToggleAutonomy?: (enabled: boolean) => void;
+  onApplyPreset?: (preset: 'balanced' | 'food' | 'winter' | 'lore') => void;
 }
 
 const ROLE_DEFINITIONS: {
@@ -121,6 +123,8 @@ export const LaborManager: React.FC<LaborManagerProps> = ({
   state,
   onUpdateRoleDistribution,
   onInspectPerson,
+  onToggleAutonomy,
+  onApplyPreset,
 }) => {
   const livingPeople = state.people.filter((p) => p.alive);
   const adults = livingPeople.filter((p) => p.age >= 10);
@@ -131,6 +135,8 @@ export const LaborManager: React.FC<LaborManagerProps> = ({
   livingPeople.forEach((p) => {
     roleCounts[p.role] = (roleCounts[p.role] || 0) + 1;
   });
+
+  const isAutonomyOn = state.policies.autonomyEnabled !== false;
 
   return (
     <div id="labor-manager-view" className="space-y-6">
@@ -158,6 +164,71 @@ export const LaborManager: React.FC<LaborManagerProps> = ({
               <div className="font-mono font-bold text-stone-300 text-base">{children.length}</div>
             </div>
           </div>
+        </div>
+
+        {/* Autonomy & Presets Bar */}
+        <div className="mt-4 pt-4 border-t border-stone-800/80 flex flex-wrap items-center justify-between gap-4">
+          {/* Autonomy Toggle */}
+          <div className="flex items-center gap-3">
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                id="toggle-tribal-autonomy"
+                checked={isAutonomyOn}
+                onChange={(e) => onToggleAutonomy && onToggleAutonomy(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-10 h-5 bg-stone-800 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+              <span className="ml-2.5 text-xs font-semibold text-stone-200">
+                Tribal Survival Autonomy:
+                <span className={isAutonomyOn ? 'text-amber-400 ml-1 font-bold' : 'text-stone-500 ml-1'}>
+                  {isAutonomyOn ? 'ACTIVE' : 'MANUAL'}
+                </span>
+              </span>
+            </label>
+            <span className="text-[11px] text-stone-500 hidden sm:inline">
+              (Auto-reallocates labor when food, water, or firewood drop critically low)
+            </span>
+          </div>
+
+          {/* Quick Presets */}
+          {onApplyPreset && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-[11px] text-stone-400 font-medium mr-1">Presets:</span>
+              <button
+                id="preset-balanced"
+                onClick={() => onApplyPreset('balanced')}
+                className="px-2.5 py-1 rounded bg-stone-950 hover:bg-stone-800 border border-stone-800 text-stone-300 text-xs transition-colors"
+                title="Balanced survival allocations across all key disciplines"
+              >
+                ⚖️ Balanced
+              </button>
+              <button
+                id="preset-food"
+                onClick={() => onApplyPreset('food')}
+                className="px-2.5 py-1 rounded bg-stone-950 hover:bg-stone-800 border border-stone-800 text-amber-300 text-xs transition-colors"
+                title="Mobilize hunters and foragers for maximum calorie generation"
+              >
+                🍞 Food Push
+              </button>
+              <button
+                id="preset-winter"
+                onClick={() => onApplyPreset('winter')}
+                className="px-2.5 py-1 rounded bg-stone-950 hover:bg-stone-800 border border-stone-800 text-orange-300 text-xs transition-colors"
+                title="Prioritize lumberjacks and warm shelters for freezing blizzards"
+              >
+                ❄️ Winter Prep
+              </button>
+              <button
+                id="preset-lore"
+                onClick={() => onApplyPreset('lore')}
+                className="px-2.5 py-1 rounded bg-stone-950 hover:bg-stone-800 border border-stone-800 text-purple-300 text-xs transition-colors"
+                title="Assign elder lorekeepers and scouts to preserve oral heritage"
+              >
+                🔬 Knowledge
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

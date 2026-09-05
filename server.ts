@@ -1,15 +1,48 @@
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT || "3000", 10);
 
-app.use(express.json({ limit: "5mb" }));
+// Security Headers
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Allows Vite inline scripts and styles in SPA
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
+// Payload size limit to prevent memory exhaustion
+app.use(express.json({ limit: "100kb" }));
+
+// General API rate limiter
+const generalApiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: "Too many requests. Please slow down." },
+});
+app.use("/api/", generalApiLimiter);
+
+// AI Chronicle rate limiter (protects LLM quotas and prevents DoS)
+const chronicleLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Chronicle request limit reached. Please wait a minute before consulting the tribal elders again.",
+  },
+});
 
 // Lazy GoogleGenAI initialization
 let genAiClient: GoogleGenAI | null = null;
@@ -27,46 +60,71 @@ function getGenAI(): GoogleGenAI | null {
   return genAiClient;
 }
 
-// Health check
+// Health check endpoint
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
+    uptimeSeconds: Math.floor(process.uptime()),
     hasApiKey: !!process.env.GEMINI_API_KEY,
     timestamp: new Date().toISOString(),
   });
 });
 
 // AI Tribal Elder & Historical Chronicle endpoint
-app.post("/api/ai/chronicle", async (req, res) => {
+app.post("/api/ai/chronicle", chronicleLimiter, async (req, res) => {
   try {
     const { report, promptType, civilizationState } = req.body;
+
+    // Strict input validation
+    const validPromptTypes = ["yearly_epic", "crisis"];
+    const selectedType = validPromptTypes.includes(promptType) ? promptType : "yearly_epic";
+
+    if (selectedType === "yearly_epic" && (!report || typeof report !== "object")) {
+      return res.status(400).json({
+        success: false,
+        error: "Valid yearly report object is required for yearly_epic chronicle.",
+      });
+    }
+
     const ai = getGenAI();
 
     if (!ai) {
-      // Fallback deterministic chronicle if no API key is provided
-      const year = report?.year ?? 0;
-      const pop = report?.population?.current ?? 100;
-      const deaths = report?.population?.deaths ?? 0;
-      const births = report?.population?.births ?? 0;
-      const threats = report?.threatLevel ?? "Safe";
-      
-      const fallbackNarrative = `In Year ${year}, the tribe endured the turning seasons. Numbering ${pop} souls, they recorded ${births} newborn cries and mourned ${deaths} fallen kin. The camp remains classified under ${threats} conditions, relying on communal fire, foraged roots, and shared stone axes to meet the harsh dawn.`;
+      // Deterministic engine fallback chronicle if no Gemini API key is configured
+      const year = typeof report?.year === "number" ? Math.max(0, report.year) : 0;
+      const pop = typeof report?.population?.current === "number" ? report.population.current : 100;
+      const deaths = typeof report?.population?.deaths === "number" ? report.population.deaths : 0;
+      const births = typeof report?.population?.births === "number" ? report.population.births : 0;
+      const threats = report?.threatLevel || "Safe";
+
+      const fallbackNarrative = `In Year ${year}, the clan weathered the turning seasons along the riverbank. Numbering ${pop} surviving souls, they recorded ${births} newborn cries and mourned ${deaths} fallen kin. The encampment remains classified under ${threats} conditions, relying on communal fire, foraged roots, and shared stone axes to meet each dawn.`;
 
       return res.json({
         success: true,
         source: "engine-deterministic",
         chronicle: fallbackNarrative,
-        recommendation: deaths > births 
-          ? "Reallocate more healthy hunters and water-carriers before the frost returns." 
-          : "Maintain current labor balance and preserve dry grain stores."
+        recommendation:
+          deaths > births
+            ? "Reallocate more healthy hunters and water-carriers before the winter frost returns."
+            : "Maintain current labor balance and protect dry grain storage against moisture.",
       });
     }
 
     let prompt = "";
-    if (promptType === "yearly_epic") {
+    if (selectedType === "yearly_epic") {
+      // Safe sanitized summary of report for prompt
+      const sanitizedReport = {
+        year: report.year,
+        population: report.population,
+        food: report.food,
+        water: report.water,
+        health: report.health,
+        threatLevel: report.threatLevel,
+        notableHappenings: report.notableHappenings,
+      };
+
       prompt = `You are the Ancient Tribal Chronicler and AI Civilization Engine.
 Analyze the following Year Report of an emerging human civilization starting from Year 0:
-${JSON.stringify(report, null, 2)}
+${JSON.stringify(sanitizedReport, null, 2)}
 
 Provide:
 1. "saga": A vivid, gritty, realistic 2-paragraph historical chronicle capturing the humans' struggle, weather, deaths, triumphs, and discoveries during this year.
@@ -74,8 +132,8 @@ Provide:
 3. "strategicAdvice": 2-3 realistic survival priorities for the next year (e.g. food buffer, shelter repairs, water hygiene).
 Format as JSON with keys: "saga", "councilDeliberation", "strategicAdvice".`;
     } else {
-      prompt = `You are the AI Civilization Engine. The human settlement is facing the following crisis / condition:
-State: ${JSON.stringify(civilizationState, null, 2)}
+      prompt = `You are the AI Civilization Engine. The human settlement is facing an environmental or physiological crisis:
+State Summary: ${JSON.stringify(civilizationState || {}, null, 2).slice(0, 2000)}
 
 Generate:
 1. "eventTitle": Title of the historical crisis/incident
@@ -101,9 +159,10 @@ Format as JSON with keys: "eventTitle", "narrative", "consequences", "suggestedA
     });
   } catch (error: any) {
     console.error("AI Chronicle Error:", error);
-    res.status(500).json({
+    // Do not leak stack traces or internal errors to client
+    return res.status(500).json({
       success: false,
-      error: error.message || "Failed to generate chronicle",
+      error: "The Tribal Chronicler could not be reached. Please try again or use engine records.",
     });
   }
 });
@@ -123,9 +182,22 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`AI Civilization Engine Server running on http://0.0.0.0:${PORT}`);
   });
+
+  // Graceful shutdown
+  const shutdown = () => {
+    console.log("Shutting down server gracefully...");
+    server.close(() => {
+      console.log("Server closed.");
+      process.exit(0);
+    });
+  };
+
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }
 
 startServer();
+

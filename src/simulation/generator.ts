@@ -120,7 +120,7 @@ export function createInitialPeople(rng: SeededRandom): Person[] {
   return people;
 }
 
-export function createInitialResources(): Record<ResourceId, ResourceState> {
+export function createInitialResources(): Record<string, ResourceState> {
   return {
     wood: {
       id: 'wood',
@@ -516,8 +516,9 @@ export function createInitialInfrastructure(): SettlementInfrastructure {
   };
 }
 
-export function createInitialCivilization(rng: SeededRandom): CivilizationState {
-  const people = createInitialPeople(rng);
+export function createInitialCivilization(rng?: SeededRandom): CivilizationState {
+  const effectiveRng = rng || new SeededRandom(12345);
+  const people = createInitialPeople(effectiveRng);
   const resources = createInitialResources();
   const regions = createInitialRegions();
   const technologies = createInitialTechs();
@@ -563,6 +564,7 @@ export function createInitialCivilization(rng: SeededRandom): CivilizationState 
       quarantineSick: true,
       explorationAggression: 'Moderate',
       teachingFocus: 'Survival',
+      autonomyEnabled: true,
     },
   };
 }

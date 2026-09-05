@@ -134,34 +134,34 @@ export interface Person {
     woodcraft: number;
     healing: number;
     lore: number;
-    combat: number;
-    crafting: number;
-    trading: number;
-    leadership: number;
-    fishing: number;
-    mining: number;
+    combat?: number;
+    crafting?: number;
+    trading?: number;
+    leadership?: number;
+    fishing?: number;
+    mining?: number;
   };
   relationships: {
     partnerId?: string;
     parentIds: string[];
     childrenIds: string[];
-    friendIds: string[];
-    enemyIds: string[];
+    friendIds?: string[];
+    enemyIds?: string[];
   };
-  personality: PersonalityTrait[];
-  socialClass: SocialClass;
+  personality?: PersonalityTrait[];
+  socialClass?: SocialClass;
   familyId?: string;
-  education: number;
-  wealth: number;
-  loyalty: number;
-  happiness: number;
+  education?: number;
+  wealth?: number;
+  loyalty?: number;
+  happiness?: number;
   birthplace?: string;
-  currentSettlementId: string;
+  currentSettlementId?: string;
   causeOfDeath?: string;
   deathYear?: number;
   deathSeason?: Season;
-  achievements: string[];
-  memories: string[];
+  achievements?: string[];
+  memories?: string[];
 }
 
 export type ResourceId =
@@ -205,7 +205,7 @@ export interface ResourceState {
   seasonality: Record<Season, number>;
   unit: string;
   spoilageRatePerSeason: number;
-  price: number; // Dynamic market price
+  price?: number; // Dynamic market price
 }
 
 export interface RegionZone {
@@ -219,8 +219,8 @@ export interface RegionZone {
   accessibility: number;
   explored: boolean;
   owner?: string; // Civilization ID
-  population: number;
-  settlements: string[]; // Settlement IDs
+  population?: number;
+  settlements?: string[]; // Settlement IDs
 }
 
 export interface Building {
@@ -243,7 +243,7 @@ export interface SettlementInfrastructure {
   smokingRacks: number;
   toolWorkBench: number;
   perimeterFence: number;
-  buildings: Building[];
+  buildings?: Building[];
 }
 
 export interface Settlement {
@@ -287,16 +287,16 @@ export interface GenerationalKnowledgeTech {
   id: string;
   name: string;
   era: EraType;
-  category: 'agriculture' | 'construction' | 'military' | 'medicine' | 'science' | 'industry' | 'culture' | 'navigation';
+  category?: 'agriculture' | 'construction' | 'military' | 'medicine' | 'science' | 'industry' | 'culture' | 'navigation';
   description: string;
   costPoints: number;
   discovered: boolean;
-  researched: boolean;
-  mastered: boolean;
+  researched?: boolean;
+  mastered?: boolean;
   activeKeepersCount: number;
-  prerequisites: string[]; // Tech IDs required
+  prerequisites?: string[]; // Tech IDs required
   benefits: string;
-  effects: Record<string, number>;
+  effects?: Record<string, number>;
 }
 
 export interface WeatherCondition {
@@ -305,8 +305,8 @@ export interface WeatherCondition {
   isDrought: boolean;
   isBlizzard: boolean;
   isStorm: boolean;
-  precipitationMm: number;
-  windSpeed: number;
+  precipitationMm?: number;
+  windSpeed?: number;
   forecastReliabilityPercent: number;
 }
 
@@ -339,7 +339,7 @@ export interface CrisisEvent {
   description: string;
   cascadeChain: string[];
   resolved: boolean;
-  effects: Record<string, number>;
+  effects?: Record<string, number>;
 }
 
 export interface PoliticalFaction {
@@ -399,27 +399,29 @@ export interface Religion {
 }
 
 export interface Civilization {
-  id: string;
-  name: string;
-  seed: number;
+  id?: string;
+  name?: string;
+  seed?: number;
   year: number;
-  era: EraType;
-  population: number;
-  settlements: Settlement[];
+  era?: EraType;
+  population?: number;
+  dayOfYear?: number;
+  settlements?: Settlement[];
   regions: RegionZone[];
-  resources: Record<ResourceId, ResourceState>;
+  resources: Record<string, ResourceState>;
   technologies: GenerationalKnowledgeTech[];
-  government: Government;
-  culture: Culture;
+  infrastructure: SettlementInfrastructure;
+  government?: Government;
+  culture?: Culture;
   religion?: Religion;
-  economy: EconomyState;
-  military: MilitaryState;
-  environment: EnvironmentState;
-  climate: ClimateState;
-  disasters: DisasterEvent[];
+  economy?: EconomyState;
+  military?: MilitaryState;
+  environment?: EnvironmentState;
+  climate?: ClimateState;
+  disasters?: DisasterEvent[];
   crises: CrisisEvent[];
-  history: HistoricalEvent[];
-  relations: DiplomaticRelation[];
+  history?: HistoricalEvent[];
+  relations?: DiplomaticRelation[];
   weather: WeatherCondition;
   policies: PolicySet;
   people: Person[];
@@ -575,10 +577,11 @@ export interface PolicySet {
   quarantineSick: boolean;
   explorationAggression: 'Cautious' | 'Moderate' | 'Daring';
   teachingFocus: 'Survival' | 'Crafting' | 'Healing' | 'Exploration';
-  taxation: 'Low' | 'Medium' | 'High';
-  militaryService: 'Volunteer' | 'Conscription' | 'Professional';
-  tradePolicy: 'Isolationist' | 'Balanced' | 'Expansionist';
-  immigration: 'Closed' | 'Restricted' | 'Open';
+  taxation?: 'Low' | 'Medium' | 'High';
+  militaryService?: 'Volunteer' | 'Conscription' | 'Professional';
+  tradePolicy?: 'Isolationist' | 'Balanced' | 'Expansionist';
+  immigration?: 'Closed' | 'Restricted' | 'Open';
+  autonomyEnabled?: boolean;
 }
 
 export interface YearlyResourceReport {
@@ -590,7 +593,7 @@ export interface YearlyResourceReport {
     migration: number;
     lifeExpectancy: number;
     infantMortality: number;
-    ageDistribution: Record<string, number>;
+    ageDistribution?: Record<string, number>;
   };
   food: {
     productionKg: number;
@@ -633,7 +636,7 @@ export interface YearlyResourceReport {
     barterValueIndex: number;
     wealthScore: number;
     employmentPercent: number;
-    inflation: number;
+    inflation?: number;
   };
   environment: {
     forestCoveragePercent: number;
@@ -641,12 +644,12 @@ export interface YearlyResourceReport {
     wildlifeAbundancePercent: number;
     pollutionLevelPercent: number;
   };
-  politics: {
+  politics?: {
     stability: number;
     legitimacy: number;
     factionPower: Record<string, number>;
   };
-  military: {
+  military?: {
     armySize: number;
     strength: number;
     casualties: number;
@@ -654,7 +657,12 @@ export interface YearlyResourceReport {
   };
   threatLevel: ThreatLevel;
   notableHappenings: string[];
-  era: EraType;
+  era?: EraType;
+  aiChronicle?: {
+    saga: string;
+    councilDeliberation: string;
+    strategicAdvice: string[];
+  };
 }
 
 export type ThreatLevel = 'Safe' | 'Concern' | 'Crisis' | 'Catastrophic';

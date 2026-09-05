@@ -70,19 +70,19 @@ export function advanceSimulationSeason(prevState: CivilizationState): Civilizat
   const consumptionThisSeason = simulateIndividualNeedsAndConsumption(state, context.rng);
   
   // 5. Spoilage and Storage Degradation
-  simulateSpoilageAndStorage(state, context.rng);
+  simulateSpoilageAndStorage(state);
   
   // 6. Disease, Injuries, and Healthcare
   simulateHealthAndMedicine(state, context.rng);
   
   // 7. Generational Knowledge & Tech Research
-  simulateGenerationalKnowledge(state, context.rng);
+  simulateGenerationalKnowledge(state);
   
   // 8. Exploration & Scouting
   simulateExploration(state, context.rng);
   
   // 9. Crisis Detection & Cascades
-  simulateCrisesAndCascades(state, context.rng);
+  simulateCrisesAndCascades(state);
 
   // Accumulate annual figures
   state.accumulatedAnnualProduction.foodKg += productionThisSeason.foodKg;
@@ -374,7 +374,7 @@ function simulateProduction(state: CivilizationState, rng: SeededRandom) {
   };
 }
 
-function simulateIndividualNeedsAndConsumption(state: CivilizationState) {
+function simulateIndividualNeedsAndConsumption(state: CivilizationState, rng: SeededRandom) {
   const livingPeople = state.people.filter((p) => p.alive);
   const season = state.season;
   const weather = state.weather;
@@ -581,7 +581,7 @@ function simulateSpoilageAndStorage(state: CivilizationState) {
   state.resources.fruit.quantity = Math.max(0, Math.round(state.resources.fruit.quantity * 0.70));
 }
 
-function simulateHealthAndMedicine(state: CivilizationState) {
+function simulateHealthAndMedicine(state: CivilizationState, rng: SeededRandom) {
   const living = state.people.filter((p) => p.alive);
   const herbalists = living.filter((p) => p.role === 'herbalist' && p.health > 40);
   const hasMedicineTech = state.technologies.find((t) => t.id === 'tech-herbal')?.discovered;
@@ -642,7 +642,7 @@ function simulateGenerationalKnowledge(state: CivilizationState) {
   }
 }
 
-function simulateExploration(state: CivilizationState) {
+function simulateExploration(state: CivilizationState, rng: SeededRandom) {
   const scouts = state.people.filter((p) => p.alive && p.role === 'scout');
   if (scouts.length === 0) return;
 
