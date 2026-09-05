@@ -73,6 +73,15 @@ export default function App() {
     const timer = setInterval(() => {
       setCivState((prev) => {
         const { state: nextState, reportGenerated } = simulateSeason(prev);
+        
+        // Run autonomy system to make automatic decisions
+        try {
+          const context = createSimulationContext(nextState, parseInt(localStorage.getItem(SEED_KEY) || '12345', 10), DEFAULT_CONFIG);
+          runAutonomySystem(context);
+        } catch (e) {
+          console.warn('Autonomy system error:', e);
+        }
+        
         if (reportGenerated) {
           setAnnualNotification(`Year ${reportGenerated.year} complete! Section 30 Report compiled.`);
         }
@@ -87,6 +96,15 @@ export default function App() {
   const handleStepSeason = () => {
     setCivState((prev) => {
       const { state: nextState, reportGenerated } = simulateSeason(prev);
+      
+      // Run autonomy system
+      try {
+        const context = createSimulationContext(nextState, parseInt(localStorage.getItem(SEED_KEY) || '12345', 10), DEFAULT_CONFIG);
+        runAutonomySystem(context);
+      } catch (e) {
+        console.warn('Autonomy system error:', e);
+      }
+      
       if (reportGenerated) {
         setAnnualNotification(`Year ${reportGenerated.year} complete! Section 30 Report compiled.`);
       }
@@ -98,6 +116,15 @@ export default function App() {
   const handleStepYear = () => {
     setCivState((prev) => {
       const { state: nextState, report } = simulateYear(prev);
+      
+      // Run autonomy system
+      try {
+        const context = createSimulationContext(nextState, parseInt(localStorage.getItem(SEED_KEY) || '12345', 10), DEFAULT_CONFIG);
+        runAutonomySystem(context);
+      } catch (e) {
+        console.warn('Autonomy system error:', e);
+      }
+      
       setAnnualNotification(`Year ${report.year} concluded with Threat Level: ${report.threatLevel}`);
       return nextState;
     });
