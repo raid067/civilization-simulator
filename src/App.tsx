@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { CivilizationState, RoleType } from './types';
 import { createInitialCivilization } from './simulation/generator';
-import { simulateSeason, simulateYear } from './simulation/engine';
+import { simulateSeason, simulateYear, initializeRNG, getRNG } from './simulation/engine';
 import { TimelineBar } from './components/TimelineBar';
 import { OverviewDashboard } from './components/OverviewDashboard';
 import { FullRosterView } from './components/FullRosterView';
@@ -21,20 +21,33 @@ import { GeographyMap } from './components/GeographyMap';
 import { TechTree } from './components/TechTree';
 import { YearlyReportView } from './components/YearlyReportView';
 import { PersonModal } from './components/PersonModal';
+import { runAutonomySystem } from './simulation/systems/autonomy';
+import { createSimulationContext, DEFAULT_CONFIG } from './simulation/context';
 
 const STORAGE_KEY = 'ai_civ_sim_state_v1';
+const SEED_KEY = 'ai_civ_sim_seed_v1';
 
 export default function App() {
   const [civState, setCivState] = useState<CivilizationState>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
+      const savedSeed = localStorage.getItem(SEED_KEY);
+      
+      if (saved && savedSeed) {
+        const seed = parseInt(savedSeed, 10);
+        initializeRNG(seed);
         return JSON.parse(saved);
       }
     } catch (e) {
       console.error('Failed to parse saved state:', e);
     }
-    return createInitialCivilization();
+    
+    // Generate new seed for new game
+    const seed = Math.floor(Math.random() * 1000000);
+    localStorage.setItem(SEED_KEY, seed.toString());
+    initializeRNG(seed);
+    
+    return createInitialCivilization(getRNG());
   });
 
   const [activeTab, setActiveTab] = useState<string>('overview');
