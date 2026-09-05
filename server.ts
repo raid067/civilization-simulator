@@ -182,8 +182,10 @@ async function startServer() {
     });
   }
 
-  const server = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`AI Civilization Engine Server running on http://0.0.0.0:${PORT}`);
+  const server = app.listen(PORT, () => {
+    console.log(`AI Civilization Engine Server running on:`);
+    console.log(`  > Local:   http://localhost:${PORT}`);
+    console.log(`  > IPv4:    http://127.0.0.1:${PORT}`);
   });
 
   // Graceful shutdown

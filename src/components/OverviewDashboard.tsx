@@ -302,7 +302,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         const total = Math.max(1, living.length);
 
         const coupledPairs = Math.floor(
-          living.filter((p) => p.relationships.partnerId && living.some((m) => m.id === p.relationships.partnerId && m.alive)).length / 2
+          living.filter((p) => p.relationships?.partnerId && living.some((m) => m.id === p.relationships?.partnerId && m.alive)).length / 2
         );
 
         let settlementTier = 'Surviving Band Encampment';

@@ -25,19 +25,33 @@ import { ExtinctionModal } from './components/ExtinctionModal';
 import { runAutonomySystem } from './simulation/systems/autonomy';
 import { createSimulationContext, DEFAULT_CONFIG } from './simulation/context';
 
-const STORAGE_KEY = 'ai_civ_sim_state_v1';
-const SEED_KEY = 'ai_civ_sim_seed_v1';
+const STORAGE_KEY = 'ai_civ_sim_state_v2';
+const SEED_KEY = 'ai_civ_sim_seed_v2';
 
 export default function App() {
   const [civState, setCivState] = useState<CivilizationState>(() => {
     try {
+      // Safely clear legacy v1 if any was left behind
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem('ai_civ_sim_state_v1');
+        localStorage.removeItem('ai_civ_sim_seed_v1');
+      }
+
       const saved = localStorage.getItem(STORAGE_KEY);
       const savedSeed = localStorage.getItem(SEED_KEY);
       
       if (saved && savedSeed) {
         const seed = parseInt(savedSeed, 10);
         initializeRNG(seed);
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.people) && parsed.people.some((p: any) => p.alive)) {
+          parsed.people.forEach((p: any) => {
+            if (!p.relationships) p.relationships = { parentIds: [], childrenIds: [] };
+            if (!Array.isArray(p.relationships.parentIds)) p.relationships.parentIds = [];
+            if (!Array.isArray(p.relationships.childrenIds)) p.relationships.childrenIds = [];
+          });
+          return parsed;
+        }
       }
     } catch (e) {
       console.error('Failed to parse saved state:', e);

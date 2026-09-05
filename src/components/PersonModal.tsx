@@ -278,7 +278,7 @@ export const PersonModal: React.FC<PersonModalProps> = ({ person, allPeople = []
             {/* Parents */}
             <div>
               <span className="text-stone-400 block mb-1">Parents:</span>
-              {person.relationships.parentIds && person.relationships.parentIds.length > 0 ? (
+              {person.relationships?.parentIds && person.relationships.parentIds.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {person.relationships.parentIds.map((pId) => {
                     const parent = allPeople.find((p) => p.id === pId);
@@ -307,9 +307,9 @@ export const PersonModal: React.FC<PersonModalProps> = ({ person, allPeople = []
             {/* Partner */}
             <div>
               <span className="text-stone-400 block mb-1">Partner / Spouse:</span>
-              {person.relationships.partnerId ? (
+              {person.relationships?.partnerId ? (
                 (() => {
-                  const partner = allPeople.find((p) => p.id === person.relationships.partnerId);
+                  const partner = allPeople.find((p) => p.id === person.relationships?.partnerId);
                   return partner ? (
                     <button
                       onClick={() => onSelectPerson && onSelectPerson(partner.id)}
@@ -322,18 +322,18 @@ export const PersonModal: React.FC<PersonModalProps> = ({ person, allPeople = []
                       </span>
                     </button>
                   ) : (
-                    <span className="text-stone-500 font-mono">{person.relationships.partnerId}</span>
+                    <span className="text-stone-500 font-mono">{person.relationships?.partnerId}</span>
                   );
                 })()
               ) : (
-                <span className="text-stone-500 italic">Unpaired</span>
+                <span className="text-stone-500 italic">Unpartnered</span>
               )}
             </div>
 
             {/* Children */}
             <div>
-              <span className="text-stone-400 block mb-1">Offspring ({person.relationships.childrenIds.length}):</span>
-              {person.relationships.childrenIds.length > 0 ? (
+              <span className="text-stone-400 block mb-1">Offspring ({person.relationships?.childrenIds?.length || 0}):</span>
+              {person.relationships?.childrenIds && person.relationships.childrenIds.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                   {person.relationships.childrenIds.map((cId) => {
                     const child = allPeople.find((p) => p.id === cId);
