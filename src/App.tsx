@@ -1,0 +1,333 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  LayoutDashboard,
+  Users,
+  Briefcase,
+  Boxes,
+  Map,
+  BookOpen,
+  FileText,
+  AlertTriangle,
+} from 'lucide-react';
+import { CivilizationState, RoleType } from './types';
+import { createInitialCivilization } from './simulation/generator';
+import { simulateSeason, simulateYear } from './simulation/engine';
+import { TimelineBar } from './components/TimelineBar';
+import { OverviewDashboard } from './components/OverviewDashboard';
+import { FullRosterView } from './components/FullRosterView';
+import { LaborManager } from './components/LaborManager';
+import { ResourcesView } from './components/ResourcesView';
+import { GeographyMap } from './components/GeographyMap';
+import { TechTree } from './components/TechTree';
+import { YearlyReportView } from './components/YearlyReportView';
+import { PersonModal } from './components/PersonModal';
+
+const STORAGE_KEY = 'ai_civ_sim_state_v1';
+
+export default function App() {
+  const [civState, setCivState] = useState<CivilizationState>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to parse saved state:', e);
+    }
+    return createInitialCivilization();
+  });
+
+  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [inspectingPersonId, setInspectingPersonId] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [playSpeed, setPlaySpeed] = useState<number>(1);
+  const [annualNotification, setAnnualNotification] = useState<string | null>(null);
+
+  // Save state to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(civState));
+    } catch (e) {
+      console.warn('LocalStorage save failed:', e);
+    }
+  }, [civState]);
+
+  // Simulation loop when Auto-Play is active
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const intervalMs = playSpeed === 5 ? 800 : playSpeed === 2 ? 1800 : 3500;
+    const timer = setInterval(() => {
+      setCivState((prev) => {
+        const { state: nextState, reportGenerated } = simulateSeason(prev);
+        if (reportGenerated) {
+          setAnnualNotification(`Year ${reportGenerated.year} complete! Section 30 Report compiled.`);
+        }
+        return nextState;
+      });
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [isPlaying, playSpeed]);
+
+  // Handler to advance 1 season
+  const handleStepSeason = () => {
+    setCivState((prev) => {
+      const { state: nextState, reportGenerated } = simulateSeason(prev);
+      if (reportGenerated) {
+        setAnnualNotification(`Year ${reportGenerated.year} complete! Section 30 Report compiled.`);
+      }
+      return nextState;
+    });
+  };
+
+  // Handler to advance 1 year
+  const handleStepYear = () => {
+    setCivState((prev) => {
+      const { state: nextState, report } = simulateYear(prev);
+      setAnnualNotification(`Year ${report.year} concluded with Threat Level: ${report.threatLevel}`);
+      return nextState;
+    });
+  };
+
+  // Handler to reset simulation
+  const handleReset = () => {
+    if (window.confirm('Reset civilization to Year 0 with 100 new primitive humans? All current history will be cleared.')) {
+      setIsPlaying(false);
+      const fresh = createInitialCivilization();
+      setCivState(fresh);
+      setAnnualNotification(null);
+    }
+  };
+
+  // Policy updater
+  const handleUpdatePolicy = (key: keyof CivilizationState['policies'], value: any) => {
+    setCivState((prev) => ({
+      ...prev,
+      policies: {
+        ...prev.policies,
+        [key]: value,
+      },
+    }));
+  };
+
+  // Labor role distribution modifier
+  const handleUpdateRoleDistribution = (targetRole: RoleType, delta: number) => {
+    setCivState((prev) => {
+      const livingPeople = [...prev.people];
+      const eligibleAdults = livingPeople.filter((p) => p.alive && p.age >= 10);
+
+      if (delta > 0) {
+        // Reassign someone from a larger pool (e.g. forager or hunter) to targetRole
+        const candidate = eligibleAdults.find((p) => p.role !== targetRole && p.role !== 'elder_lorekeeper');
+        if (candidate) {
+          candidate.role = targetRole;
+        }
+      } else if (delta < 0) {
+        // Reassign someone from targetRole to forager (default)
+        const workerInRole = eligibleAdults.find((p) => p.role === targetRole);
+        if (workerInRole) {
+          workerInRole.role = 'forager';
+        }
+      }
+
+      return {
+        ...prev,
+        people: livingPeople,
+      };
+    });
+  };
+
+  const inspectedPerson = inspectingPersonId
+    ? civState.people.find((p) => p.id === inspectingPersonId) || null
+    : null;
+
+  const livingCount = civState.people.filter((p) => p.alive).length;
+  const isExtinct = livingCount === 0;
+
+  return (
+    <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-sans selection:bg-amber-500/30 selection:text-amber-200">
+      {/* Top Simulation Header & Timeline Controls */}
+      <TimelineBar
+        state={civState}
+        isPlaying={isPlaying}
+        playSpeed={playSpeed}
+        onTogglePlay={() => setIsPlaying(!isPlaying)}
+        onChangeSpeed={setPlaySpeed}
+        onStepSeason={handleStepSeason}
+        onStepYear={handleStepYear}
+        onReset={handleReset}
+        onOpenLatestReport={() => setActiveTab('reports')}
+      />
+
+      {/* Extinction Alert Banner if all 100 perished */}
+      {isExtinct && (
+        <div className="bg-red-950/80 border-b border-red-800 px-4 py-3 text-center text-red-200 text-sm animate-pulse">
+          <span className="font-bold mr-2">☠️ CIVILIZATION EXTINCTION:</span>
+          All clan members have perished due to unmet physical survival needs. The civilization has collapsed. Click Reset to begin anew.
+        </div>
+      )}
+
+      {/* Annual Notification Toast */}
+      {annualNotification && (
+        <div className="bg-amber-950/90 border-b border-amber-800/80 px-4 py-2 text-center text-amber-200 text-xs flex items-center justify-center gap-3">
+          <span>{annualNotification}</span>
+          <button
+            onClick={() => {
+              setActiveTab('reports');
+              setAnnualNotification(null);
+            }}
+            className="underline hover:text-amber-100 font-semibold"
+          >
+            View Ledger
+          </button>
+          <button onClick={() => setAnnualNotification(null)} className="text-amber-400 hover:text-amber-100 ml-2">
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Primary Navigation Tabs */}
+      <nav className="bg-stone-900 border-b border-stone-800">
+        <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 overflow-x-auto py-1">
+          <button
+            id="tab-overview"
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              activeTab === 'overview'
+                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+            }`}
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            Overview & Vitals
+          </button>
+
+          <button
+            id="tab-roster"
+            onClick={() => setActiveTab('roster')}
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              activeTab === 'roster'
+                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            Clan Census ({livingCount})
+          </button>
+
+          <button
+            id="tab-labor"
+            onClick={() => setActiveTab('labor')}
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              activeTab === 'labor'
+                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+            }`}
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            Labor Allocation
+          </button>
+
+          <button
+            id="tab-resources"
+            onClick={() => setActiveTab('resources')}
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              activeTab === 'resources'
+                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+            }`}
+          >
+            <Boxes className="w-3.5 h-3.5" />
+            16 Resources
+          </button>
+
+          <button
+            id="tab-geography"
+            onClick={() => setActiveTab('geography')}
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              activeTab === 'geography'
+                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+            }`}
+          >
+            <Map className="w-3.5 h-3.5" />
+            Geography & Zones
+          </button>
+
+          <button
+            id="tab-tech-lore"
+            onClick={() => setActiveTab('tech_lore')}
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              activeTab === 'tech_lore'
+                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Generational Knowledge
+          </button>
+
+          <button
+            id="tab-reports"
+            onClick={() => setActiveTab('reports')}
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              activeTab === 'reports'
+                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Section 30 Reports ({civState.annualReports.length})
+          </button>
+        </div>
+      </nav>
+
+      {/* Main Viewport Content */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+        {activeTab === 'overview' && (
+          <OverviewDashboard
+            state={civState}
+            onUpdatePolicy={handleUpdatePolicy}
+            onInspectPerson={(id) => setInspectingPersonId(id)}
+            onNavigateTab={setActiveTab}
+          />
+        )}
+
+        {activeTab === 'roster' && (
+          <FullRosterView
+            state={civState}
+            onInspectPerson={(id) => setInspectingPersonId(id)}
+          />
+        )}
+
+        {activeTab === 'labor' && (
+          <LaborManager
+            state={civState}
+            onUpdateRoleDistribution={handleUpdateRoleDistribution}
+            onInspectPerson={(id) => setInspectingPersonId(id)}
+          />
+        )}
+
+        {activeTab === 'resources' && <ResourcesView state={civState} />}
+
+        {activeTab === 'geography' && <GeographyMap state={civState} />}
+
+        {activeTab === 'tech_lore' && <TechTree state={civState} />}
+
+        {activeTab === 'reports' && (
+          <YearlyReportView
+            reports={civState.annualReports}
+            currentYear={civState.year}
+          />
+        )}
+      </main>
+
+      {/* Person Inspection Modal (Section 1: 13 Physical Needs) */}
+      <PersonModal
+        person={inspectedPerson}
+        onClose={() => setInspectingPersonId(null)}
+      />
+    </div>
+  );
+}

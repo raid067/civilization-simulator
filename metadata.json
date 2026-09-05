@@ -1,0 +1,6 @@
+{
+  "name": "AI Civilization Engine",
+  "description": "Realistic human civilization simulation with individual survival needs, finite resources, technology evolution, and emergent historical dynamics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
