@@ -410,7 +410,7 @@ export interface AutonomousDecision {
   id: string;
   year: number;
   season: Season;
-  category: 'Food & Calorie' | 'Housing & Warmth' | 'Infrastructure' | 'Healthcare' | 'Technology' | 'Security' | 'Governance' | 'Labor & Workforce';
+  category: 'Food & Calorie' | 'Housing & Warmth' | 'Infrastructure' | 'Healthcare' | 'Technology' | 'Security' | 'Governance' | 'Labor & Workforce' | 'Migration';
   problem: string;
   action: string;
   consequence: string;
@@ -459,6 +459,10 @@ export interface Civilization {
   season: Season;
   annualBirths: number;
   annualDeaths: number;
+  annualImmigration?: number;
+  lastYearBirths?: number;
+  lastYearDeaths?: number;
+  lastYearImmigration?: number;
   accumulatedAnnualProduction: {
     foodKg: number;
     waterL: number;

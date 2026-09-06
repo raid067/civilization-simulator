@@ -518,13 +518,13 @@ export function createInitialTechs(): GenerationalKnowledgeTech[] {
 
 export function createInitialInfrastructure(): SettlementInfrastructure {
   return {
-    leafHuts: 18, // Primitive brush lean-tos
-    thatchedCabins: 2, // Larger communal shelters
-    granaryBins: 2, // Elevated platforms for dried grains
-    waterCisterns: 4, // Deep dug pits lined with river clay
-    smokingRacks: 1, // Basic tripod smoking rack
-    toolWorkBench: 1, // Shaded knapping rock
-    perimeterFence: 1, // Thorny bramble ditch
+    leafHuts: 24, // Primitive brush lean-tos (96 capacity)
+    thatchedCabins: 4, // Insulated communal cabins (32 capacity; 128 total)
+    granaryBins: 3, // Elevated platforms for dried grains (6,500 kg capacity)
+    waterCisterns: 5, // Deep dug pits lined with river clay
+    smokingRacks: 2, // Basic tripod smoking rack
+    toolWorkBench: 2, // Shaded knapping rocks
+    perimeterFence: 2, // Thorny bramble ditch & sharpened stakes
   };
 }
 
@@ -632,6 +632,10 @@ export function createInitialCivilization(rng?: SeededRandom): CivilizationState
     },
     annualBirths: 0,
     annualDeaths: 0,
+    annualImmigration: 0,
+    lastYearBirths: 0,
+    lastYearDeaths: 0,
+    lastYearImmigration: 0,
     policies: {
       foodRationing: 'Normal',
       waterConservation: false,

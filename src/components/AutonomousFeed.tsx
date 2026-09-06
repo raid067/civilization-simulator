@@ -29,13 +29,15 @@ export const AutonomousFeed: React.FC<AutonomousFeedProps> = ({
 
   const categories = [
     { id: 'all', label: 'All Decisions' },
-    { id: 'Food & Calorie', label: 'Food & Calorie' },
+    { id: 'Food & Calorie', label: 'Food' },
     { id: 'Housing & Warmth', label: 'Housing' },
+    { id: 'Labor & Workforce', label: 'Workforce' },
     { id: 'Infrastructure', label: 'Infrastructure' },
     { id: 'Healthcare', label: 'Health' },
     { id: 'Technology', label: 'Tech' },
     { id: 'Security', label: 'Security' },
     { id: 'Governance', label: 'Governance' },
+    { id: 'Migration', label: 'Migration' },
   ];
 
   const filtered = decisions
@@ -49,6 +51,8 @@ export const AutonomousFeed: React.FC<AutonomousFeedProps> = ({
         return <Flame className="w-3.5 h-3.5 text-amber-400" />;
       case 'Housing & Warmth':
         return <Home className="w-3.5 h-3.5 text-orange-400" />;
+      case 'Labor & Workforce':
+        return <Boxes className="w-3.5 h-3.5 text-emerald-400" />;
       case 'Infrastructure':
         return <Boxes className="w-3.5 h-3.5 text-blue-400" />;
       case 'Healthcare':
@@ -59,6 +63,8 @@ export const AutonomousFeed: React.FC<AutonomousFeedProps> = ({
         return <Shield className="w-3.5 h-3.5 text-red-400" />;
       case 'Governance':
         return <Crown className="w-3.5 h-3.5 text-yellow-400" />;
+      case 'Migration':
+        return <Brain className="w-3.5 h-3.5 text-cyan-400" />;
       default:
         return <Brain className="w-3.5 h-3.5 text-stone-400" />;
     }

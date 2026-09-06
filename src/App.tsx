@@ -22,6 +22,7 @@ import { TechTree } from './components/TechTree';
 import { YearlyReportView } from './components/YearlyReportView';
 import { PersonModal } from './components/PersonModal';
 import { ExtinctionModal } from './components/ExtinctionModal';
+import { GlobalVitalsHUD } from './components/GlobalVitalsHUD';
 
 const STORAGE_KEY = 'ai_civ_sim_state_v2';
 const SEED_KEY = 'ai_civ_sim_seed_v2';
@@ -423,14 +424,21 @@ export default function App() {
         onOpenLatestReport={() => setActiveTab('reports')}
       />
 
+      {/* Real-time Global Vitals Telemetry HUD */}
+      <GlobalVitalsHUD
+        state={civState}
+        onOpenLedger={() => setActiveTab('reports')}
+        onOpenRoster={() => setActiveTab('roster')}
+      />
+
       {/* Extinction Alert Banner if cohort collapsed */}
       {isExtinct && (
-        <div className="bg-red-950/80 border-b border-red-800 px-4 py-3 text-center text-red-200 text-sm animate-pulse flex items-center justify-center gap-3">
+        <div className="bg-rose-950/90 border-b border-rose-800 px-4 py-3 text-center text-rose-200 text-sm animate-pulse flex items-center justify-center gap-3 shadow-lg">
           <span className="font-bold">☠️ DEMOGRAPHIC EXTINCTION EVENT:</span>
-          <span>All 100 cohort members have perished from physiological or environmental collapse. Simulation run concluded.</span>
+          <span>All cohort members have perished from physiological or environmental collapse. Simulation run concluded.</span>
           <button
             onClick={() => setShowExtinctionModal(true)}
-            className="underline font-bold text-red-300 hover:text-white"
+            className="underline font-bold text-rose-300 hover:text-white cursor-pointer"
           >
             Examine Forensic Mortality Etiology
           </button>
@@ -439,40 +447,40 @@ export default function App() {
 
       {/* Annual Notification Toast */}
       {annualNotification && (
-        <div className="bg-amber-950/90 border-b border-amber-800/80 px-4 py-2 text-center text-amber-200 text-xs flex items-center justify-center gap-3">
+        <div className="bg-amber-950/90 border-b border-amber-800/80 px-4 py-2 text-center text-amber-200 text-xs flex items-center justify-center gap-3 shadow-sm">
           <span>{annualNotification}</span>
           <button
             onClick={() => {
               setActiveTab('reports');
               setAnnualNotification(null);
             }}
-            className="underline hover:text-amber-100 font-semibold"
+            className="underline hover:text-amber-100 font-semibold cursor-pointer"
           >
             View Ledger
           </button>
-          <button onClick={() => setAnnualNotification(null)} className="text-amber-400 hover:text-amber-100 ml-2">
+          <button onClick={() => setAnnualNotification(null)} className="text-amber-400 hover:text-amber-100 ml-2 cursor-pointer">
             ✕
           </button>
         </div>
       )}
 
       {/* Primary Navigation Tabs */}
-      <nav role="tablist" aria-label="Civilization Dashboard Tabs" className="bg-stone-900 border-b border-stone-800">
-        <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 overflow-x-auto py-1">
+      <nav role="tablist" aria-label="Civilization Dashboard Tabs" className="bg-stone-900/90 backdrop-blur-md border-b border-stone-800/80">
+        <div className="max-w-7xl mx-auto px-4 flex items-center gap-1.5 overflow-x-auto py-1.5 no-scrollbar">
           <button
             id="tab-overview"
             role="tab"
             aria-selected={activeTab === 'overview'}
             aria-controls="panel-overview"
             onClick={() => setActiveTab('overview')}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'overview'
-                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
-                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-950/40'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
             }`}
           >
-            <LayoutDashboard className="w-3.5 h-3.5" />
-            Telemetry & Vitals
+            <LayoutDashboard className="w-3.5 h-3.5 text-amber-400" />
+            Telemetry & Overview
           </button>
 
           <button
@@ -481,14 +489,14 @@ export default function App() {
             aria-selected={activeTab === 'roster'}
             aria-controls="panel-roster"
             onClick={() => setActiveTab('roster')}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'roster'
-                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
-                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-950/40'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
             }`}
           >
-            <Users className="w-3.5 h-3.5" />
-            Demographic Census ({livingCount})
+            <Users className="w-3.5 h-3.5 text-emerald-400" />
+            Census <span className="font-mono text-[11px] px-1.5 py-0.2 rounded-full bg-stone-950 text-stone-300 border border-stone-800">{livingCount}</span>
           </button>
 
           <button
@@ -497,13 +505,13 @@ export default function App() {
             aria-selected={activeTab === 'labor'}
             aria-controls="panel-labor"
             onClick={() => setActiveTab('labor')}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'labor'
-                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
-                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-950/40'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
             }`}
           >
-            <Briefcase className="w-3.5 h-3.5" />
+            <Briefcase className="w-3.5 h-3.5 text-orange-400" />
             Division of Labor
           </button>
 
@@ -513,14 +521,14 @@ export default function App() {
             aria-selected={activeTab === 'resources'}
             aria-controls="panel-resources"
             onClick={() => setActiveTab('resources')}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'resources'
-                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
-                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-950/40'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
             }`}
           >
-            <Boxes className="w-3.5 h-3.5" />
-            Ecological Stockpiles
+            <Boxes className="w-3.5 h-3.5 text-cyan-400" />
+            Stockpiles
           </button>
 
           <button
@@ -529,14 +537,14 @@ export default function App() {
             aria-selected={activeTab === 'geography'}
             aria-controls="panel-geography"
             onClick={() => setActiveTab('geography')}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'geography'
-                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
-                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-950/40'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
             }`}
           >
-            <Map className="w-3.5 h-3.5" />
-            Spatial Biomes & Habitats
+            <Map className="w-3.5 h-3.5 text-emerald-400" />
+            Territory & Biomes
           </button>
 
           <button
@@ -545,14 +553,14 @@ export default function App() {
             aria-selected={activeTab === 'tech_lore'}
             aria-controls="panel-tech_lore"
             onClick={() => setActiveTab('tech_lore')}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'tech_lore'
-                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
-                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-950/40'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
             }`}
           >
-            <BookOpen className="w-3.5 h-3.5" />
-            Cultural Transmission & Tech
+            <BookOpen className="w-3.5 h-3.5 text-purple-400" />
+            Tech & Lore <span className="font-mono text-[11px] px-1.5 py-0.2 rounded-full bg-stone-950 text-stone-300 border border-stone-800">{civState.technologies.filter(t => t.discovered).length}/9</span>
           </button>
 
           <button
@@ -561,14 +569,14 @@ export default function App() {
             aria-selected={activeTab === 'reports'}
             aria-controls="panel-reports"
             onClick={() => setActiveTab('reports')}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'reports'
-                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/30'
-                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-950/40'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
             }`}
           >
-            <FileText className="w-3.5 h-3.5" />
-            Empirical Annual Reports ({civState.annualReports.length})
+            <FileText className="w-3.5 h-3.5 text-amber-400" />
+            Ledger ({civState.annualReports.length})
           </button>
         </div>
       </nav>

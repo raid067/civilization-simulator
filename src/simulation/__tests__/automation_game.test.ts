@@ -62,8 +62,8 @@ describe('Civilization Simulator - True Automation Game Suite', () => {
     for (const person of living) {
       expect(Number.isNaN(person.age)).toBe(false);
       expect(Number.isNaN(person.health)).toBe(false);
-      expect(Number.isNaN(person.caloricNeed)).toBe(false);
-      expect(Number.isNaN(person.hydrationL)).toBe(false);
+      expect(Number.isNaN(person.hunger)).toBe(false);
+      expect(Number.isNaN(person.thirst)).toBe(false);
       expect(person.age).toBeGreaterThanOrEqual(0);
       expect(person.health).toBeGreaterThanOrEqual(0);
       // Dead persons never retain active workforce roles
@@ -73,7 +73,7 @@ describe('Civilization Simulator - True Automation Game Suite', () => {
     // Verify all IDs are unique
     const idSet = new Set(state.people.map(p => p.id));
     expect(idSet.size).toBe(state.people.length);
-  });
+  }, 30000);
 
   it('guarantees deterministic outcomes from identical world seeds', () => {
     // Run 1

@@ -104,11 +104,17 @@ export function advanceSimulationSeason(prevState: CivilizationState): Civilizat
     const report = generateYearlyReport(state);
     state.annualReports.push(report);
 
+    // Preserve last year's demographic totals for HUD velocity tracking
+    state.lastYearBirths = state.annualBirths;
+    state.lastYearDeaths = state.annualDeaths;
+    state.lastYearImmigration = state.annualImmigration || 0;
+
     // Reset annual counters
     state.accumulatedAnnualProduction = { foodKg: 0, waterL: 0, woodUnits: 0, stoneUnits: 0, fuelUnits: 0 };
     state.accumulatedAnnualConsumption = { foodKg: 0, waterL: 0, fuelUnits: 0 };
     state.annualBirths = 0;
     state.annualDeaths = 0;
+    state.annualImmigration = 0;
 
     // Age all living people by 1 year and graduate adolescents to productive workforce
     for (const person of state.people) {
@@ -609,87 +615,191 @@ function simulateIndividualNeedsAndConsumption(state: CivilizationState, rng: Se
     }
   }
 
-  // 6. Natural Births & Kinship Mating (Demographic Equilibrium)
-  if ((season === 'Spring' || season === 'Autumn') && livingPeople.length < 320) {
-    const livingMales = livingPeople.filter((p) => p.gender === 'male' && p.age >= 18 && p.age <= 50 && p.alive && p.health >= 50);
-    const fertileFemales = livingPeople.filter(
-      (p) => p.gender === 'female' && p.age >= 17 && p.age <= 40 && p.alive && p.health >= 60 && p.hunger < 35
-    );
+  // 6. Natural Births & Kinship Mating (Demographic Expansion & Equilibrium)
+  // Evaluate reproduction across all 4 seasons with seasonal fertility curve
+  const livingMales = livingPeople.filter((p) => p.gender === 'male' && p.age >= 16 && p.age <= 55 && p.alive && p.health >= 40);
+  const fertileFemales = livingPeople.filter(
+    (p) => p.gender === 'female' && p.age >= 16 && p.age <= 45 && p.alive && p.health >= 45 && p.hunger < 50
+  );
 
-    // Pair unpartnered adults
-    for (const female of fertileFemales) {
-      if (!female.relationships.partnerId) {
-        const eligiblePartner = livingMales.find((m) => !m.relationships.partnerId && m.id !== female.id);
-        if (eligiblePartner) {
-          female.relationships.partnerId = eligiblePartner.id;
-          eligiblePartner.relationships.partnerId = female.id;
-        }
+  // Pair unpartnered adults efficiently (O(N))
+  const unpartneredMales = livingMales.filter((m) => !m.relationships.partnerId);
+  let maleIdx = 0;
+  for (const female of fertileFemales) {
+    if (!female.relationships.partnerId && maleIdx < unpartneredMales.length) {
+      const eligiblePartner = unpartneredMales[maleIdx++];
+      female.relationships.partnerId = eligiblePartner.id;
+      eligiblePartner.relationships.partnerId = female.id;
+    }
+  }
+
+  // Create fast ID lookup map for living people
+  const livingPeopleMap = new Map<string, Person>();
+  for (const p of livingPeople) {
+    livingPeopleMap.set(p.id, p);
+  }
+
+  // Seasonal base conception chance:
+  // Spring: 0.16 (peak vitality & thaw)
+  // Summer: 0.14 (bountiful harvest)
+  // Autumn: 0.12 (pre-winter preparation)
+  // Winter: 0.08 (harsh cold)
+  const seasonalFertility = season === 'Spring' ? 0.16 : season === 'Summer' ? 0.14 : season === 'Autumn' ? 0.12 : 0.08;
+
+  // Food abundance factor: scales from 0.5x up to 2.0x when food reserves are vast
+  const totalFoodKg =
+    state.resources.fruit.quantity +
+    state.resources.meat.quantity +
+    state.resources.fish.quantity +
+    state.resources.grains.quantity +
+    state.resources.plants.quantity;
+
+  const foodAbundanceFactor = Math.min(2.0, Math.max(0.5, totalFoodKg / Math.max(1, livingPeople.length * 60)));
+  const shelterAdequacyFactor = livingPeople.length < shelterCapacity ? 1.25 : 0.75;
+  const hasAgri = state.technologies.some((t) => t.id === 'tech-agri' && t.discovered);
+  const agriBonus = hasAgri ? 1.3 : 1.0;
+
+  // Regional carrying capacity: smooth Sigmoid/logistic dampening as population approaches density ceiling
+  const maxDensity = 1000;
+  const crowdingFactor =
+    livingPeople.length >= maxDensity ? 0.02 :
+    livingPeople.length > shelterCapacity * 1.5 ? 0.20 :
+    livingPeople.length > shelterCapacity ? 0.55 :
+    1.20;
+  const birthChance = seasonalFertility * foodAbundanceFactor * crowdingFactor * agriBonus;
+
+  for (const mom of fertileFemales) {
+    // Morale & individual health bonus
+    const personalVitality = (mom.health / 100) * 0.5 + (mom.mentalState / 100) * 0.5;
+    if (rng.chance(birthChance * personalVitality)) {
+      const babyGender = rng.chance(0.5) ? 'female' : 'male';
+      const babyNames = babyGender === 'male'
+        ? ['Kip', 'Arlo', 'Tari', 'Orin', 'Baelin', 'Duran', 'Bran', 'Keld', 'Jarek', 'Torm', 'Eldar', 'Sven', 'Roric', 'Finn', 'Merek']
+        : ['Tara', 'Shani', 'Lila', 'Nemi', 'Vani', 'Mira', 'Kora', 'Sela', 'Brena', 'Zaya', 'Faye', 'Kaelen', 'Yara', 'Astrid', 'Vespera'];
+
+      const dad = mom.relationships.partnerId
+        ? livingPeopleMap.get(mom.relationships.partnerId)
+        : (livingMales.length > 0 ? livingMales[rng.integer(0, livingMales.length - 1)] : undefined);
+
+      const parentName = mom.name.split(' ')[0];
+
+      const baby: Person = {
+        id: `p-${state.people.length + 1}`,
+        name: `${rng.pick(babyNames)} of-${parentName}`,
+        age: 0,
+        gender: babyGender,
+        alive: true,
+        health: 94,
+        hunger: 5,
+        thirst: 5,
+        fatigue: 5,
+        temperature: 37.0,
+        mentalState: 90,
+        injuries: [],
+        diseases: [],
+        nutrition: 85,
+        shelterQuality: 70,
+        clothingQuality: 40,
+        warmth: 85,
+        safety: 85,
+        role: 'idle_child',
+        skills: {
+          hunting: dad ? Math.round(dad.skills.hunting * 0.15) : 5,
+          foraging: Math.round(mom.skills.foraging * 0.20),
+          farming: hasAgri ? 15 : 5,
+          stonecraft: 5,
+          woodcraft: 5,
+          healing: 5,
+          lore: Math.max(10, Math.round(mom.skills.lore * 0.15)),
+          fishing: 10,
+        },
+        relationships: {
+          parentIds: dad ? [mom.id, dad.id] : [mom.id],
+          childrenIds: [],
+        },
+      };
+
+      state.people.push(baby);
+      mom.relationships.childrenIds.push(baby.id);
+      if (dad) {
+        dad.relationships.childrenIds.push(baby.id);
       }
+      state.annualBirths += 1;
+    }
+  }
+
+  // 6b. Nomadic Integration & Immigrant Influx (Prosperity Attraction)
+  // Prosperous, secure societies attract neighboring hunter-gatherers, wanderers, and refugees
+  const waterRunwayDays = (state.resources.fresh_water.quantity / Math.max(1, livingPeople.length * 2.0));
+  const foodRunwayDays = (totalFoodKg / Math.max(1, livingPeople.length * 1.5));
+  const isSafe = !state.weather.isBlizzard && !state.weather.isDrought && (!state.crises || state.crises.filter((c) => !c.resolved).length === 0);
+  const isProsperous = foodRunwayDays > 45 && waterRunwayDays > 35 && isSafe;
+
+  if (isProsperous && livingPeople.length < maxDensity && season !== 'Winter' && rng.chance(0.20)) {
+    const migrantCount = rng.integer(1, 3);
+    const wandererNamesMale = ['Toran', 'Bram', 'Enki', 'Ronak', 'Vael', 'Khor', 'Brant', 'Galan', 'Korm', 'Zoran'];
+    const wandererNamesFemale = ['Mara', 'Sura', 'Osha', 'Naru', 'Tova', 'Dara', 'Kira', 'Lyra', 'Vea', 'Ilka'];
+
+    for (let m = 0; m < migrantCount; m++) {
+      const migrantGender = rng.chance(0.5) ? 'female' : 'male';
+      const namePool = migrantGender === 'male' ? wandererNamesMale : wandererNamesFemale;
+      const migrantAge = 16 + rng.integer(0, 22);
+
+      const migrant: Person = {
+        id: `p-${state.people.length + 1}`,
+        name: `${rng.pick(namePool)} Wanderer`,
+        age: migrantAge,
+        gender: migrantGender,
+        alive: true,
+        health: 80 + rng.integer(0, 15),
+        hunger: 15,
+        thirst: 15,
+        fatigue: 20,
+        temperature: 36.9,
+        mentalState: 75,
+        injuries: [],
+        diseases: [],
+        nutrition: 80,
+        shelterQuality: 50,
+        clothingQuality: 40,
+        warmth: 75,
+        safety: 75,
+        role: rng.chance(0.4) ? 'forager' : rng.chance(0.5) ? 'hunter' : 'fisherman',
+        skills: {
+          hunting: 30 + rng.integer(0, 25),
+          foraging: 35 + rng.integer(0, 25),
+          farming: 10,
+          stonecraft: 15,
+          woodcraft: 20,
+          healing: 10,
+          lore: 15,
+          fishing: 25 + rng.integer(0, 25),
+        },
+        relationships: {
+          parentIds: [],
+          childrenIds: [],
+        },
+      };
+
+      state.people.push(migrant);
+      state.annualImmigration = (state.annualImmigration || 0) + 1;
     }
 
-    // Birth probability scaled by clan nutrition and food reserves
-    const totalFoodKg =
-      state.resources.fruit.quantity +
-      state.resources.meat.quantity +
-      state.resources.fish.quantity +
-      state.resources.grains.quantity;
-    const foodAbundanceFactor = Math.min(1.25, Math.max(0.4, totalFoodKg / Math.max(1, livingPeople.length * 80)));
-
-    for (const mom of fertileFemales) {
-      if (rng.chance(0.10 * foodAbundanceFactor)) {
-        const babyGender = rng.chance(0.5) ? 'female' : 'male';
-        const babyNames = babyGender === 'male'
-          ? ['Kip', 'Arlo', 'Tari', 'Orin', 'Baelin', 'Duran', 'Bran', 'Keld', 'Jarek', 'Torm']
-          : ['Tara', 'Shani', 'Lila', 'Nemi', 'Vani', 'Mira', 'Kora', 'Sela', 'Brena', 'Zaya'];
-
-        const dad = mom.relationships.partnerId
-          ? state.people.find((p) => p.id === mom.relationships.partnerId && p.alive)
-          : (livingMales.length > 0 ? livingMales[rng.integer(0, livingMales.length - 1)] : undefined);
-
-        const parentName = mom.name.split(' ')[0];
-
-        const baby: Person = {
-          id: `p-${state.people.length + 1}`,
-          name: `${rng.pick(babyNames)} of-${parentName}`,
-          age: 0,
-          gender: babyGender,
-          alive: true,
-          health: 92,
-          hunger: 5,
-          thirst: 5,
-          fatigue: 5,
-          temperature: 37.0,
-          mentalState: 90,
-          injuries: [],
-          diseases: [],
-          nutrition: 85,
-          shelterQuality: 60,
-          clothingQuality: 35,
-          warmth: 85,
-          safety: 85,
-          role: 'idle_child',
-          skills: {
-            hunting: dad ? Math.round(dad.skills.hunting * 0.15) : 5,
-            foraging: Math.round(mom.skills.foraging * 0.20),
-            farming: 5,
-            stonecraft: 5,
-            woodcraft: 5,
-            healing: 5,
-            lore: Math.max(10, Math.round(mom.skills.lore * 0.15)),
-            fishing: 10,
-          },
-          relationships: {
-            parentIds: dad ? [mom.id, dad.id] : [mom.id],
-            childrenIds: [],
-          },
-        };
-
-        state.people.push(baby);
-        mom.relationships.childrenIds.push(baby.id);
-        if (dad) {
-          dad.relationships.childrenIds.push(baby.id);
-        }
-        state.annualBirths += 1;
+    // Log decision / event in autonomous feed
+    if (state.autonomousDecisions) {
+      state.autonomousDecisions.unshift({
+        id: `dec-${state.year}-${state.season}-mig-${state.autonomousDecisions.length + 1}`,
+        year: state.year,
+        season: state.season,
+        category: 'Migration',
+        problem: 'Displaced nomadic wanderers from outer wilderness observed our thriving campfires.',
+        action: `Welcomed ${migrantCount} nomadic wanderers into our communal hearth.`,
+        consequence: 'Expanded workforce with able hunter-gatherers; assimilated into clan society.',
+        reasoning: 'Abundant food stockpiles and open dwellings permit peaceful clan expansion.',
+        importance: 'notable',
+      });
+      if (state.autonomousDecisions.length > 50) {
+        state.autonomousDecisions.pop();
       }
     }
   }
