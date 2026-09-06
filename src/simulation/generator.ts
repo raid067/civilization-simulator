@@ -8,6 +8,8 @@ import {
   SettlementInfrastructure,
   GenerationalKnowledgeTech,
   Season,
+  AutonomousDecision,
+  LeaderProfile,
 } from '../types';
 import { SeededRandom } from './utils/Random';
 
@@ -533,6 +535,33 @@ export function createInitialCivilization(rng?: SeededRandom): CivilizationState
   const regions = createInitialRegions();
   const technologies = createInitialTechs();
   const infrastructure = createInitialInfrastructure();
+  // Determine initial Chieftain / Council Leader from prime elders
+  const elderCandidates = people.filter(p => p.age >= 35);
+  const initialLeaderPerson = elderCandidates.length > 0 ? elderCandidates[0] : people[0];
+  const leader: LeaderProfile = {
+    id: initialLeaderPerson.id,
+    name: initialLeaderPerson.name,
+    title: 'Council Elder',
+    personality: 'Agrarian Provider',
+    reignStartYear: 0,
+    wisdom: 65,
+    charisma: 70,
+    aggressiveness: 30,
+  };
+
+  const initialDecisions: AutonomousDecision[] = [
+    {
+      id: 'dec-0-Spring-1',
+      year: 0,
+      season: 'Spring',
+      category: 'Governance',
+      problem: 'Nomadic band establishes permanent seasonal hearth along the riverbank.',
+      action: `${initialLeaderPerson.name} proclaimed founding of River Terrace Encampment.`,
+      consequence: 'Formed 100-member autonomous society with initial leaf huts and tool benches.',
+      reasoning: 'Abundant fresh river water and terrace loess identified as optimal settlement foundation.',
+      importance: 'historic',
+    }
+  ];
 
   return {
     year: 0,
@@ -550,6 +579,42 @@ export function createInitialCivilization(rng?: SeededRandom): CivilizationState
       isBlizzard: false,
       isStorm: false,
       forecastReliabilityPercent: 70,
+    },
+    settlements: [
+      {
+        id: 'settlement-main',
+        name: 'River Terrace Camp',
+        regionId: 'reg-river',
+        tier: 'Camp',
+        population: 100,
+        families: [],
+        buildings: [],
+        infrastructure,
+        food: 4200,
+        water: 4000,
+        wealth: 100,
+        health: 85,
+        happiness: 80,
+        loyalty: 90,
+        defense: 25,
+        culture: 10,
+        technology: 0,
+        government: 'Tribal Council',
+        foundedYear: 0,
+        tradeRoutes: [],
+      }
+    ],
+    government: {
+      type: 'Tribal Council',
+      rulerId: leader.id,
+      legitimacy: 85,
+      stability: 90,
+      corruption: 0,
+      administrativeCapacity: 100,
+      factions: [],
+      laws: [],
+      taxRate: 0,
+      treasury: 50,
     },
     crises: [],
     annualReports: [],
@@ -576,5 +641,8 @@ export function createInitialCivilization(rng?: SeededRandom): CivilizationState
       teachingFocus: 'Survival',
       autonomyEnabled: true,
     },
+    nationalFocus: 'balanced',
+    autonomousDecisions: initialDecisions,
+    leader,
   };
 }

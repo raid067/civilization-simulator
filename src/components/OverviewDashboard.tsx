@@ -13,19 +13,22 @@ import {
   Sliders,
   Sparkles,
   Zap,
+  Crown,
+  Compass,
+  CheckCircle2,
 } from 'lucide-react';
 import { CivilizationState, RoleType } from '../types';
+import { AutonomousFeed } from './AutonomousFeed';
 
 interface OverviewDashboardProps {
   state: CivilizationState;
-  onUpdatePolicy: (key: keyof CivilizationState['policies'], value: any) => void;
   onInspectPerson: (personId: string) => void;
   onNavigateTab: (tab: string) => void;
+  onUpdatePolicy?: (key: keyof CivilizationState['policies'], value: any) => void;
 }
 
 export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   state,
-  onUpdatePolicy,
   onInspectPerson,
   onNavigateTab,
 }) => {
@@ -50,30 +53,60 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   const waterReserveDays = dailyWaterConsumptionL > 0 ? Math.floor(state.resources.fresh_water.quantity / dailyWaterConsumptionL) : 0;
 
   // Shelter capacity
-  const shelterCapacity = state.infrastructure.leafHuts * 4 + state.infrastructure.thatchedCabins * 8;
+  const shelterCapacity = (state.infrastructure.leafHuts || 0) * 4 + (state.infrastructure.thatchedCabins || 0) * 8;
   const unsheltered = Math.max(0, totalLiving - shelterCapacity);
 
   // Average Morale & Health
   const avgHealth = totalLiving > 0 ? Math.round(livingPeople.reduce((a, b) => a + b.health, 0) / totalLiving) : 0;
   const avgMorale = totalLiving > 0 ? Math.round(livingPeople.reduce((a, b) => a + b.mentalState, 0) / totalLiving) : 0;
 
+  const leader = state.leader;
+
   return (
     <div id="overview-dashboard-view" className="space-y-6">
-      {/* The Golden Rule Banner (Section 31) */}
-      <div className="bg-gradient-to-r from-amber-950/40 via-stone-900 to-amber-950/20 border border-amber-800/40 rounded-xl p-4 shadow-sm">
-        <div className="flex items-start gap-3">
-          <span className="text-xl">🔥</span>
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400">
-              Section 31 • The Golden Law of Civilizations
-            </h4>
-            <p className="text-xs text-stone-300 mt-0.5 leading-relaxed font-serif">
-              "Everything has a cost. Food requires labor. Buildings require materials. Cities require water.
-              Technology requires knowledge. War destroys resources. Growth creates environmental pressure. Nothing appears from nowhere."
-            </p>
+      {/* Governance Leadership & Doctrine Banner */}
+      {leader && (
+        <div className="bg-gradient-to-r from-amber-950/50 via-stone-900 to-stone-950 border border-amber-800/50 rounded-xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl">
+              👑
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                  {leader.title} {leader.name}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-stone-950 text-amber-200 border border-stone-800 font-mono">
+                  {leader.personality}
+                </span>
+                <span className="text-[10px] text-stone-400">
+                  Reign: Year {leader.reignStartYear}–{state.year} ({Math.max(1, state.year - leader.reignStartYear)}y)
+                </span>
+              </div>
+              <p className="text-xs text-stone-300 mt-0.5">
+                Executive doctrine: Wisdom {leader.wisdom}/100 • Charisma {leader.charisma}/100 • Decisiveness {leader.aggressiveness}/100
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs">
+            <button
+              onClick={() => onInspectPerson(leader.id)}
+              className="px-3 py-1.5 bg-stone-950 hover:bg-stone-800 text-amber-300 font-semibold rounded-lg border border-stone-800 transition-colors"
+            >
+              Inspect Chieftain →
+            </button>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Live Autonomous Decisions & Council Deliberation Feed */}
+      <AutonomousFeed
+        decisions={state.autonomousDecisions || []}
+        currentYear={state.year}
+        currentSeason={state.season}
+        maxDisplay={15}
+      />
 
       {/* Active Crises & Cascade Alerts (Sections 21 & 22) */}
       {state.crises.length > 0 && (
@@ -111,18 +144,15 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                 </div>
               </div>
 
-              <button
-                onClick={() => onNavigateTab('labor')}
-                className="px-3 py-1.5 bg-black/50 hover:bg-black/70 text-xs font-semibold rounded-lg border border-current transition-colors shrink-0"
-              >
-                Reallocate Labor
-              </button>
+              <div className="text-[11px] text-amber-300 font-mono italic">
+                Council autonomy actively managing mitigation...
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Settlement Survival Vitals Grid (Section 14) */}
+      {/* Settlement Survival Vitals Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3.5">
         {/* Population */}
         <div className="bg-stone-900 border border-stone-800 p-3.5 rounded-xl">
@@ -130,11 +160,11 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             <span className="flex items-center gap-1">
               <Users className="w-3.5 h-3.5 text-amber-400" /> Active Cohort
             </span>
-            <span className="font-mono text-stone-500">100 base</span>
+            <span className="font-mono text-stone-500">Living</span>
           </div>
           <div className="text-2xl font-bold font-mono text-stone-100">{totalLiving}</div>
           <div className="text-[11px] text-stone-500 mt-1">
-            {100 - totalLiving > 0 ? `${100 - totalLiving} deceased agents` : 'Full starting cohort'}
+            {state.people.length - totalLiving > 0 ? `${state.people.length - totalLiving} ancestors recorded` : 'Full starting cohort'}
           </div>
         </div>
 
@@ -188,7 +218,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           </div>
           <div className="text-2xl font-bold font-mono text-emerald-400">{avgHealth}%</div>
           <div className="text-[11px] text-stone-500 mt-1">
-            {sickCount > 0 ? `${sickCount} infected/injured agents` : 'No active pathogen contagion'}
+            {sickCount > 0 ? `${sickCount} infected/injured agents` : 'No active contagion'}
           </div>
         </div>
 
@@ -201,93 +231,69 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             <span className="font-mono text-stone-400">Cap: {shelterCapacity}</span>
           </div>
           <div className="text-2xl font-bold font-mono text-stone-100">
-            {state.infrastructure.leafHuts + state.infrastructure.thatchedCabins} units
+            {(state.infrastructure.leafHuts || 0) + (state.infrastructure.thatchedCabins || 0)} dwellings
           </div>
           <div className="text-[11px] text-stone-500 mt-1">
-            {unsheltered > 0 ? `${unsheltered} unsheltered agents` : '100% population housed'}
+            {unsheltered > 0 ? `${unsheltered} unsheltered agents` : '100% population sheltered'}
           </div>
         </div>
       </div>
 
-      {/* Human Decision-Making & Tribal Policies (Section 23) */}
+      {/* Autonomous Policies & Model Parameters (Observational) */}
       <div className="bg-stone-900 border border-stone-800 rounded-xl p-5 shadow-sm">
-        <h3 className="text-sm font-bold text-stone-100 flex items-center gap-2 mb-3">
+        <h3 className="text-sm font-bold text-stone-100 flex items-center gap-2 mb-2">
           <Sliders className="w-4 h-4 text-amber-400" />
-          Societal Survival Policies & Model Parameters (Section 23)
+          Autonomous Societal Policies & Survival Mandates
         </h3>
         <p className="text-xs text-stone-400 mb-4">
-          Model parameters governing metabolic consumption quotas, conservation mandates, and thermal mitigation:
+          The civilization automatically enacts survival decrees based on real-time ecological conditions:
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           {/* Food Rationing */}
-          <div className="bg-stone-950 p-3 rounded-lg border border-stone-800">
-            <label className="block font-semibold text-stone-300 mb-1.5">Food Rationing Quota</label>
-            <div className="grid grid-cols-3 gap-1">
-              {(['Frugal', 'Normal', 'Generous'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => onUpdatePolicy('foodRationing', mode)}
-                  className={`py-1 rounded text-xs font-medium transition-colors ${
-                    state.policies.foodRationing === mode
-                      ? 'bg-amber-600 text-stone-950 font-bold'
-                      : 'bg-stone-800 text-stone-400 hover:text-stone-200'
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
+          <div className="bg-stone-950 p-3.5 rounded-lg border border-stone-800 space-y-1.5">
+            <span className="text-stone-400 font-semibold block text-[10px] uppercase tracking-wider">
+              Caloric Rationing Mandate
+            </span>
+            <div className="text-base font-bold font-mono text-amber-300">
+              {state.policies.foodRationing} Consumption
             </div>
-            <p className="text-[10px] text-stone-500 mt-1.5">
-              Frugal preserves reserves but causes hunger & morale drops. Generous boosts vitality.
+            <p className="text-[10px] text-stone-400">
+              {state.policies.foodRationing === 'Frugal'
+                ? 'Emergency austerity (-20% food intake) active to preserve dwindling stockpiles.'
+                : state.policies.foodRationing === 'Generous'
+                ? 'Harvest feasting (+25% food intake) active; morale and reproduction elevated.'
+                : 'Balanced baseline per-capita caloric distribution active.'}
             </p>
           </div>
 
           {/* Water Conservation */}
-          <div className="bg-stone-950 p-3 rounded-lg border border-stone-800 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-semibold text-stone-300">Water Conservation Protocol</span>
-                <input
-                  type="checkbox"
-                  checked={state.policies.waterConservation}
-                  onChange={(e) => onUpdatePolicy('waterConservation', e.target.checked)}
-                  className="rounded border-stone-700 text-amber-600 focus:ring-amber-500 w-4 h-4 bg-stone-900"
-                />
-              </div>
-              <p className="text-[10px] text-stone-500">
-                Reduces daily water consumption by 25%. Vital during prolonged summer droughts.
-              </p>
-            </div>
-            <span
-              className={`text-[11px] font-mono mt-2 ${
-                state.policies.waterConservation ? 'text-cyan-400' : 'text-stone-500'
-              }`}
-            >
-              Status: {state.policies.waterConservation ? 'Active Conservation' : 'Normal Usage'}
+          <div className="bg-stone-950 p-3.5 rounded-lg border border-stone-800 space-y-1.5">
+            <span className="text-stone-400 font-semibold block text-[10px] uppercase tracking-wider">
+              Water Conservation Protocol
             </span>
+            <div className="text-base font-bold font-mono text-cyan-300">
+              {state.policies.waterConservation ? 'Active Conservation Mandate' : 'Unrestricted Access'}
+            </div>
+            <p className="text-[10px] text-stone-400">
+              {state.policies.waterConservation
+                ? 'Water drawing capped at 75% per capita due to drought conditions or low reserves.'
+                : 'Normal spring and river hydration access allowed across all clan quarters.'}
+            </p>
           </div>
 
           {/* Firewood Priority */}
-          <div className="bg-stone-950 p-3 rounded-lg border border-stone-800">
-            <label className="block font-semibold text-stone-300 mb-1.5">Winter Fuel Allocation</label>
-            <div className="grid grid-cols-3 gap-1">
-              {(['Minimum', 'Balanced', 'Maximum Warmth'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => onUpdatePolicy('firewoodPriority', mode)}
-                  className={`py-1 rounded text-[11px] font-medium transition-colors ${
-                    state.policies.firewoodPriority === mode
-                      ? 'bg-orange-600 text-stone-950 font-bold'
-                      : 'bg-stone-800 text-stone-400 hover:text-stone-200'
-                  }`}
-                >
-                  {mode.split(' ')[0]}
-                </button>
-              ))}
+          <div className="bg-stone-950 p-3.5 rounded-lg border border-stone-800 space-y-1.5">
+            <span className="text-stone-400 font-semibold block text-[10px] uppercase tracking-wider">
+              Communal Hearth Protocol
+            </span>
+            <div className="text-base font-bold font-mono text-orange-300">
+              {state.policies.firewoodPriority}
             </div>
-            <p className="text-[10px] text-stone-500 mt-1.5">
-              Maximum warmth prevents hypothermia in winter blizzards at the cost of high wood consumption.
+            <p className="text-[10px] text-stone-400">
+              {state.policies.firewoodPriority === 'Maximum Warmth'
+                ? 'Hearth fires stoked with maximum fuel to protect against sub-zero frostbite.'
+                : 'Balanced wood burning maintaining stable communal warmth without wasting timber.'}
             </p>
           </div>
         </div>

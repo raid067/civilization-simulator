@@ -22,8 +22,6 @@ import { TechTree } from './components/TechTree';
 import { YearlyReportView } from './components/YearlyReportView';
 import { PersonModal } from './components/PersonModal';
 import { ExtinctionModal } from './components/ExtinctionModal';
-import { runAutonomySystem } from './simulation/systems/autonomy';
-import { createSimulationContext, DEFAULT_CONFIG } from './simulation/context';
 
 const STORAGE_KEY = 'ai_civ_sim_state_v2';
 const SEED_KEY = 'ai_civ_sim_seed_v2';
@@ -127,6 +125,9 @@ export default function App() {
       } else if (e.key === 'd' || e.key === 'D') {
         e.preventDefault();
         handleStepDecade();
+      } else if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        handleStepCentury();
       } else if (e.key === '1') {
         setPlaySpeed(1);
       } else if (e.key === '2') {
@@ -135,6 +136,14 @@ export default function App() {
         setPlaySpeed(5);
       } else if (e.key === '4') {
         setPlaySpeed(10);
+      } else if (e.key === '5') {
+        setPlaySpeed(25);
+      } else if (e.key === '6') {
+        setPlaySpeed(50);
+      } else if (e.key === '7') {
+        setPlaySpeed(100);
+      } else if (e.key === '8') {
+        setPlaySpeed(1000);
       } else if (e.key === 'Escape') {
         setInspectingPersonId(null);
         setShowExtinctionModal(false);
@@ -149,25 +158,52 @@ export default function App() {
   useEffect(() => {
     if (!isPlaying) return;
 
-    const intervalMs = playSpeed === 10 ? 300 : playSpeed === 5 ? 700 : playSpeed === 2 ? 1500 : 3000;
+    // Determine batching and tick frequency for smooth, lag-free execution across 1x-1000x speeds
+    let intervalMs = 2000;
+    let seasonsPerTick = 1;
+
+    if (playSpeed === 2) {
+      intervalMs = 1000;
+      seasonsPerTick = 1;
+    } else if (playSpeed === 5) {
+      intervalMs = 400;
+      seasonsPerTick = 1;
+    } else if (playSpeed === 10) {
+      intervalMs = 200;
+      seasonsPerTick = 1;
+    } else if (playSpeed === 25) {
+      intervalMs = 120;
+      seasonsPerTick = 3;
+    } else if (playSpeed === 50) {
+      intervalMs = 100;
+      seasonsPerTick = 5;
+    } else if (playSpeed === 100) {
+      intervalMs = 80;
+      seasonsPerTick = 8;
+    } else if (playSpeed === 1000) {
+      intervalMs = 50;
+      seasonsPerTick = 50;
+    }
+
     const timer = setInterval(() => {
       setCivState((prev) => {
-        const { state: nextState, reportGenerated } = simulateSeason(prev);
-        
-        // Run autonomy system if enabled
-        if (nextState.policies?.autonomyEnabled !== false) {
-          try {
-            const context = createSimulationContext(nextState, parseInt(localStorage.getItem(SEED_KEY) || '12345', 10), DEFAULT_CONFIG);
-            runAutonomySystem(context);
-          } catch (e) {
-            console.warn('Autonomy system error:', e);
+        let current = prev;
+        let lastReport: any = null;
+        for (let s = 0; s < seasonsPerTick; s++) {
+          const { state: nextState, reportGenerated } = simulateSeason(current);
+          current = nextState;
+          if (reportGenerated) {
+            lastReport = reportGenerated;
+          }
+          if (current.people.filter((p) => p.alive).length === 0) {
+            setIsPlaying(false);
+            break;
           }
         }
-        
-        if (reportGenerated) {
-          setAnnualNotification(`Solar cycle ${reportGenerated.year} complete! Forensic Annual Report compiled.`);
+        if (lastReport) {
+          setAnnualNotification(`Solar cycle ${lastReport.year} complete! Forensic Annual Report compiled.`);
         }
-        return nextState;
+        return current;
       });
     }, intervalMs);
 
@@ -178,16 +214,6 @@ export default function App() {
   const handleStepSeason = () => {
     setCivState((prev) => {
       const { state: nextState, reportGenerated } = simulateSeason(prev);
-      
-      if (nextState.policies?.autonomyEnabled !== false) {
-        try {
-          const context = createSimulationContext(nextState, parseInt(localStorage.getItem(SEED_KEY) || '12345', 10), DEFAULT_CONFIG);
-          runAutonomySystem(context);
-        } catch (e) {
-          console.warn('Autonomy system error:', e);
-        }
-      }
-      
       if (reportGenerated) {
         setAnnualNotification(`Solar cycle ${reportGenerated.year} complete! Forensic Annual Report compiled.`);
       }
@@ -199,16 +225,6 @@ export default function App() {
   const handleStepYear = () => {
     setCivState((prev) => {
       const { state: nextState, report } = simulateYear(prev);
-      
-      if (nextState.policies?.autonomyEnabled !== false) {
-        try {
-          const context = createSimulationContext(nextState, parseInt(localStorage.getItem(SEED_KEY) || '12345', 10), DEFAULT_CONFIG);
-          runAutonomySystem(context);
-        } catch (e) {
-          console.warn('Autonomy system error:', e);
-        }
-      }
-      
       setAnnualNotification(`Solar cycle ${report.year} concluded with Environmental Threat Level: ${report.threatLevel}`);
       return nextState;
     });
@@ -223,18 +239,6 @@ export default function App() {
         const { state: nextState, report } = simulateYear(currentState);
         currentState = nextState;
         lastReport = report;
-        if (currentState.policies?.autonomyEnabled !== false) {
-          try {
-            const context = createSimulationContext(
-              currentState,
-              parseInt(localStorage.getItem(SEED_KEY) || '12345', 10) + y,
-              DEFAULT_CONFIG
-            );
-            runAutonomySystem(context);
-          } catch (e) {
-            console.warn('Autonomy system error:', e);
-          }
-        }
         if (currentState.people.filter((p) => p.alive).length === 0) break;
       }
       if (lastReport) {
@@ -244,11 +248,48 @@ export default function App() {
     });
   };
 
+  // Handler to advance 1 full century (100 solar cycles / 400 seasons)
+  const handleStepCentury = () => {
+    setCivState((prev) => {
+      let currentState = prev;
+      let lastReport: any = null;
+      for (let y = 0; y < 100; y++) {
+        const { state: nextState, report } = simulateYear(currentState);
+        currentState = nextState;
+        lastReport = report;
+        if (currentState.people.filter((p) => p.alive).length === 0) break;
+      }
+      if (lastReport) {
+        setAnnualNotification(`Century epoch concluded! Reached Solar Cycle Year ${lastReport.year} (Active Cohort: ${currentState.people.filter(p => p.alive).length}).`);
+      }
+      return currentState;
+    });
+  };
+
+  // Handler to set National Focus
+  const handleUpdateNationalFocus = (focus: any) => {
+    setCivState((prev) => ({
+      ...prev,
+      nationalFocus: focus,
+    }));
+  };
+
+  // Handler to generate a fresh seeded world
+  const handleNewSeed = (seed: number) => {
+    setIsPlaying(false);
+    localStorage.setItem(SEED_KEY, seed.toString());
+    initializeRNG(seed);
+    const fresh = createInitialCivilization(getRNG());
+    setCivState(fresh);
+    setAnnualNotification(`World seeded with Seed #${seed}. A new autonomous civilization rises.`);
+    setShowExtinctionModal(false);
+  };
+
   // Handler to reset simulation
   const handleReset = () => {
     if (window.confirm('Re-initialize simulation cohort to Year 0 with 100 autonomous humans? All empirical observations will be reset.')) {
       setIsPlaying(false);
-      const fresh = createInitialCivilization();
+      const fresh = createInitialCivilization(getRNG());
       setCivState(fresh);
       setAnnualNotification(null);
       setShowExtinctionModal(true);
@@ -375,7 +416,10 @@ export default function App() {
         onStepSeason={handleStepSeason}
         onStepYear={handleStepYear}
         onStepDecade={handleStepDecade}
+        onStepCentury={handleStepCentury}
         onReset={handleReset}
+        onUpdateNationalFocus={handleUpdateNationalFocus}
+        onNewSeed={handleNewSeed}
         onOpenLatestReport={() => setActiveTab('reports')}
       />
 

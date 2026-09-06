@@ -16,8 +16,8 @@ import { CivilizationState, RoleType } from '../types';
 
 interface LaborManagerProps {
   state: CivilizationState;
-  onUpdateRoleDistribution: (targetRole: RoleType, delta: number) => void;
   onInspectPerson: (personId: string) => void;
+  onUpdateRoleDistribution?: (targetRole: RoleType, delta: number) => void;
   onToggleAutonomy?: (enabled: boolean) => void;
   onApplyPreset?: (preset: 'balanced' | 'food' | 'winter' | 'lore') => void;
 }
@@ -98,8 +98,8 @@ const ROLE_DEFINITIONS: {
     id: 'herbalist',
     label: 'Healers & Herbalists',
     icon: <Sparkles className="w-4 h-4 text-pink-400" />,
-    description: 'Prepare willow bark poultices and care for infected or wounded clan members.',
-    keyResource: 'Reduced Clan Mortality',
+    description: 'Prepare willow bark extracts, poultices, and dried feverfew to treat infection and sickness.',
+    keyResource: 'Health & Recovery',
     requiresAdult: true,
   },
   {
@@ -112,17 +112,17 @@ const ROLE_DEFINITIONS: {
   },
   {
     id: 'scout',
-    label: 'Trail Scouts',
-    icon: <Compass className="w-4 h-4 text-teal-400" />,
-    description: 'Range into distant mountains, coastlines, and steppes to discover resources.',
-    keyResource: 'Region Discovery',
+    label: 'Wilderness Scouts',
+    icon: <Compass className="w-4 h-4 text-indigo-400" />,
+    description: 'Explore unmapped territorial biomes, uncover flint deposits, and watch for predator packs.',
+    keyResource: 'Geographic Knowledge',
     requiresAdult: true,
   },
   {
     id: 'elder_lorekeeper',
     label: 'Elder Lorekeepers',
     icon: <BookOpen className="w-4 h-4 text-purple-400" />,
-    description: 'Maintain oral history and invent innovations around the fire. Preserves discoveries.',
+    description: 'Safeguard oral survival knowledge around the sacred fire. Prevent civilizational tech loss.',
     keyResource: 'Generational Knowledge',
     requiresAdult: true,
   },
@@ -130,10 +130,7 @@ const ROLE_DEFINITIONS: {
 
 export const LaborManager: React.FC<LaborManagerProps> = ({
   state,
-  onUpdateRoleDistribution,
   onInspectPerson,
-  onToggleAutonomy,
-  onApplyPreset,
 }) => {
   const livingPeople = state.people.filter((p) => p.alive);
   const adults = livingPeople.filter((p) => p.age >= 10);
@@ -145,7 +142,34 @@ export const LaborManager: React.FC<LaborManagerProps> = ({
     roleCounts[p.role] = (roleCounts[p.role] || 0) + 1;
   });
 
-  const isAutonomyOn = state.policies.autonomyEnabled !== false;
+  const getRoleRationale = (roleId: RoleType): string => {
+    switch (roleId) {
+      case 'forager':
+        return `Meadow and riparian margin foraging scaled for ${state.season} vegetation yields.`;
+      case 'hunter':
+        return `Game tracking active across forest borders to secure animal protein and hides.`;
+      case 'fisherman':
+        return `Exploiting Red River aquatic biome; vital seasonal fish protein.`;
+      case 'farmer':
+        return state.technologies.some((t) => t.id === 'tech-agri' && t.discovered)
+          ? 'Intensive cereal crop cultivation on river terrace loam.'
+          : 'Experimental horticulture pending agricultural mastery.';
+      case 'water_fetcher':
+        return `Ensuring continuous camp hydration (Water reserve: ${Math.round(state.resources.fresh_water.quantity)}L).`;
+      case 'lumberjack':
+        return `Harvesting firewood buffer and timber for infrastructure.`;
+      case 'builder':
+        return `Maintaining dwellings and erecting civic infrastructure.`;
+      case 'herbalist':
+        return `Providing medical triage and botanical remedies for the sick.`;
+      case 'scout':
+        return `Perimeter border vigilance and predator deterrence.`;
+      case 'elder_lorekeeper':
+        return `Senior elders transmitting generational technology around the communal hearth.`;
+      default:
+        return 'Engaged in camp maintenance and communal chores.';
+    }
+  };
 
   return (
     <div id="labor-manager-view" className="space-y-6">
@@ -155,90 +179,52 @@ export const LaborManager: React.FC<LaborManagerProps> = ({
           <div>
             <h2 className="text-lg font-bold text-stone-100 flex items-center gap-2">
               <Users className="w-5 h-5 text-amber-400" />
-              Emergent Division of Labor & Societal Dynamics (Section 19)
+              Autonomous Division of Labor & Societal Workforce
             </h2>
             <p className="text-xs text-stone-400 mt-1 max-w-2xl">
-              Every survival discipline demands dedicated human labor. Agents self-organize according to metabolic
-              priorities (hydration, caloric intake, thermal survival). Observers can examine autonomous equilibrium
-              or apply counterfactual societal policies.
+              The civilization self-organizes without manual micromanagement. Workers are autonomously deployed to tasks
+              based on marginal caloric returns, water runways, winter frost proximity, and individual craft proficiencies.
             </p>
           </div>
 
           <div className="flex items-center gap-3 bg-stone-950 px-4 py-2 rounded-lg border border-stone-800 text-xs">
             <div>
-              <div className="text-stone-400">Total Active Workforce</div>
+              <div className="text-stone-400">Active Workforce</div>
               <div className="font-mono font-bold text-emerald-400 text-base">{adults.length} adult agents</div>
             </div>
             <div className="border-l border-stone-800 pl-3">
-              <div className="text-stone-400">Dependent Cohort (Children)</div>
+              <div className="text-stone-400">Dependent Children</div>
               <div className="font-mono font-bold text-stone-300 text-base">{children.length}</div>
             </div>
           </div>
         </div>
 
-        {/* Autonomy & Archetypes Bar */}
+        {/* Autonomy Status Banner */}
         <div className="mt-4 pt-4 border-t border-stone-800/80 flex flex-wrap items-center justify-between gap-4">
-          {/* Autonomy Toggle */}
-          <div className="flex items-center gap-3">
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                id="toggle-tribal-autonomy"
-                checked={isAutonomyOn}
-                onChange={(e) => onToggleAutonomy && onToggleAutonomy(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-10 h-5 bg-stone-800 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
-              <span className="ml-2.5 text-xs font-semibold text-stone-200">
-                Autonomous Agent Allocation:
-                <span className={isAutonomyOn ? 'text-amber-400 ml-1 font-bold' : 'text-stone-500 ml-1'}>
-                  {isAutonomyOn ? 'ACTIVE (Self-Organizing)' : 'MANUAL INTERVENTION'}
-                </span>
-              </span>
-            </label>
-            <span className="text-[11px] text-stone-500 hidden sm:inline">
-              (Agents autonomously reallocate labor upon metabolic or environmental stress thresholds)
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="text-xs font-semibold text-stone-200">
+              Autonomous Dynamic Labor Planner:
+              <span className="text-emerald-400 ml-1.5 font-bold">100% SELF-GOVERNING</span>
             </span>
           </div>
 
-          {/* Societal Archetypes */}
-          {onApplyPreset && (
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className="text-[11px] text-stone-400 font-medium mr-1">Archetypes:</span>
-              <button
-                id="preset-balanced"
-                onClick={() => onApplyPreset('balanced')}
-                className="px-2.5 py-1 rounded bg-stone-950 hover:bg-stone-800 border border-stone-800 text-stone-300 text-xs transition-colors"
-                title="Scenario: Steady-state baseline labor equilibrium"
-              >
-                ⚖️ Nomadic Baseline
-              </button>
-              <button
-                id="preset-food"
-                onClick={() => onApplyPreset('food')}
-                className="px-2.5 py-1 rounded bg-stone-950 hover:bg-stone-800 border border-stone-800 text-amber-300 text-xs transition-colors"
-                title="Scenario: Focus workforce heavily on calorie acquisition"
-              >
-                🍞 Caloric Focus
-              </button>
-              <button
-                id="preset-winter"
-                onClick={() => onApplyPreset('winter')}
-                className="px-2.5 py-1 rounded bg-stone-950 hover:bg-stone-800 border border-stone-800 text-orange-300 text-xs transition-colors"
-                title="Scenario: Prioritize firewood harvesting and thermal insulation against frost"
-              >
-                ❄️ Thermal Buffer
-              </button>
-              <button
-                id="preset-lore"
-                onClick={() => onApplyPreset('lore')}
-                className="px-2.5 py-1 rounded bg-stone-950 hover:bg-stone-800 border border-stone-800 text-purple-300 text-xs transition-colors"
-                title="Scenario: Dedicate senior agents to preserving oral technologies"
-              >
-                🔬 Epistemic Focus
-              </button>
-            </div>
-          )}
+          <div className="text-[11px] text-stone-400 flex items-center gap-2">
+            <span>Doctrine:</span>
+            <span className="px-2 py-0.5 rounded bg-stone-950 text-amber-300 border border-stone-800 font-medium">
+              {state.nationalFocus === 'food_security'
+                ? 'Caloric Abundance'
+                : state.nationalFocus === 'defense'
+                ? 'Defensive Vigilance'
+                : state.nationalFocus === 'technology'
+                ? 'Science & Lore'
+                : state.nationalFocus === 'expansion'
+                ? 'Urban Growth'
+                : state.nationalFocus === 'ecological'
+                ? 'Ecological Harmony'
+                : 'Autonomous Equilibrium'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -247,6 +233,7 @@ export const LaborManager: React.FC<LaborManagerProps> = ({
         {ROLE_DEFINITIONS.map((def) => {
           const count = roleCounts[def.id] || 0;
           const workersInRole = livingPeople.filter((p) => p.role === def.id);
+          const pct = Math.round((count / Math.max(1, adults.length)) * 100);
 
           return (
             <div
@@ -263,36 +250,30 @@ export const LaborManager: React.FC<LaborManagerProps> = ({
                     </div>
                   </div>
 
-                  {/* Worker Counter and Controls */}
-                  <div className="flex items-center gap-1.5 bg-stone-950 px-2 py-1 rounded-md border border-stone-800">
-                    <button
-                      onClick={() => onUpdateRoleDistribution(def.id, -1)}
-                      disabled={count <= 0}
-                      className="w-5 h-5 flex items-center justify-center rounded bg-stone-800 hover:bg-stone-700 text-stone-200 disabled:opacity-30 text-xs font-bold transition-colors"
-                      title="Counterfactual adjustment: Reassign 1 adult agent from this discipline"
-                    >
-                      -
-                    </button>
-                    <span className="font-mono font-bold text-amber-300 px-1 text-sm min-w-[20px] text-center">
-                      {count}
-                    </span>
-                    <button
-                      onClick={() => onUpdateRoleDistribution(def.id, 1)}
-                      className="w-5 h-5 flex items-center justify-center rounded bg-amber-700 hover:bg-amber-600 text-stone-100 text-xs font-bold transition-colors"
-                      title="Counterfactual adjustment: Assign 1 adult agent to this discipline"
-                    >
-                      +
-                    </button>
+                  {/* Observational Allocation Badge */}
+                  <div className="flex items-center gap-1.5 bg-stone-950 px-2.5 py-1 rounded-md border border-stone-800 text-right">
+                    <div>
+                      <span className="font-mono font-bold text-amber-300 text-sm">{count}</span>
+                      <span className="text-[10px] text-stone-400 ml-1">({pct}%)</span>
+                    </div>
                   </div>
                 </div>
 
-                <p className="text-xs text-stone-400 leading-relaxed mb-3">{def.description}</p>
+                <p className="text-xs text-stone-400 leading-relaxed mb-2">{def.description}</p>
+
+                {/* Autonomous Rationale */}
+                <div className="bg-stone-950/70 p-2 rounded border border-stone-800/80 text-[11px] text-stone-300 mb-3">
+                  <span className="text-amber-400/90 font-semibold block text-[10px] uppercase tracking-wider mb-0.5">
+                    Council Deployment Logic:
+                  </span>
+                  <span>{getRoleRationale(def.id)}</span>
+                </div>
               </div>
 
               {/* Worker Avatars Preview */}
               <div className="border-t border-stone-800/80 pt-2.5">
                 <div className="flex items-center justify-between text-[11px] text-stone-500 mb-1.5">
-                  <span>Active Cohort ({count} agents)</span>
+                  <span>Assigned Clan Cohort ({count})</span>
                   <span>Avg Health: {workersInRole.length > 0 ? Math.round(workersInRole.reduce((a, b) => a + b.health, 0) / workersInRole.length) : 0}%</span>
                 </div>
                 <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">

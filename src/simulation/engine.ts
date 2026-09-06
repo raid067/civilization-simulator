@@ -10,6 +10,7 @@ import {
 } from '../types';
 import { SeededRandom } from './utils/Random';
 import { SimulationContext, createSimulationContext, DEFAULT_CONFIG } from './context';
+import { runAutonomySystem } from './systems/autonomy';
 
 const SEASONS_ORDER: Season[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
 
@@ -62,6 +63,9 @@ export function advanceSimulationSeason(prevState: CivilizationState): Civilizat
   
   // 2. Resource Regeneration in Nature
   simulateEcosystemRegeneration(state, context.rng);
+
+  // 2b. Autonomous Decision Loop (Needs -> Problems -> Priorities -> Labor, Construction & Policies)
+  runAutonomySystem(context);
   
   // 3. Labor & Production Phase
   const productionThisSeason = simulateProduction(state, context.rng);
@@ -444,10 +448,11 @@ function simulateIndividualNeedsAndConsumption(state: CivilizationState, rng: Se
   let totalConsumedFuel = 0;
 
   // Calculate shelter capacity
-  const shelterCapacity = state.infrastructure.leafHuts * 4 + state.infrastructure.thatchedCabins * 8;
-  const hasShelter = livingPeople.length <= shelterCapacity;
+  const shelterCapacity = (state.infrastructure.leafHuts || 0) * 4 + (state.infrastructure.thatchedCabins || 0) * 8;
 
-  for (const person of livingPeople) {
+  for (let personIndex = 0; personIndex < livingPeople.length; personIndex++) {
+    const person = livingPeople[personIndex];
+    const hasShelter = personIndex < shelterCapacity;
     // 1. Differentiated Caloric Food Need by Age & Rationing Policy
     let baseFoodNeed = 100; // Adult baseline: ~1.11 kg/day
     if (person.age <= 2) {

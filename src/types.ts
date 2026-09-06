@@ -398,6 +398,37 @@ export interface Religion {
   tolerance: number; // 0-100
 }
 
+export type NationalFocusType = 
+  | 'balanced'
+  | 'food_security'
+  | 'defense'
+  | 'technology'
+  | 'expansion'
+  | 'ecological';
+
+export interface AutonomousDecision {
+  id: string;
+  year: number;
+  season: Season;
+  category: 'Food & Calorie' | 'Housing & Warmth' | 'Infrastructure' | 'Healthcare' | 'Technology' | 'Security' | 'Governance' | 'Labor & Workforce';
+  problem: string;
+  action: string;
+  consequence: string;
+  reasoning: string;
+  importance: 'routine' | 'notable' | 'historic';
+}
+
+export interface LeaderProfile {
+  id: string;
+  name: string;
+  title: string;
+  personality: 'Agrarian Provider' | 'Scholar Innovator' | 'Vigilant Guardian' | 'Traditional Elder' | 'Ambitious Builder';
+  reignStartYear: number;
+  wisdom: number;
+  charisma: number;
+  aggressiveness: number;
+}
+
 export interface Civilization {
   id?: string;
   name?: string;
@@ -441,6 +472,9 @@ export interface Civilization {
     fuelUnits: number;
   };
   annualReports: YearlyResourceReport[];
+  nationalFocus?: NationalFocusType;
+  autonomousDecisions?: AutonomousDecision[];
+  leader?: LeaderProfile;
 }
 
 export interface EconomyState {
